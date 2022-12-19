@@ -57,7 +57,9 @@ func run(ctx context.Context) error {
 	defer zapDBLogger.Sync()
 	dbLogger := chatbot.NewLogger(zapDBLogger)
 
-	zapClientLogger, err := zap.NewDevelopment()
+	clientLogConfig := zap.NewDevelopmentConfig()
+	clientLogConfig.Level.SetLevel(zap.InfoLevel)
+	zapClientLogger, err := clientLogConfig.Build()
 	if err != nil {
 		return fmt.Errorf("failed to create zap client logger: %w", err)
 	}
