@@ -49,20 +49,25 @@ func (s *Server) Close() error {
 
 // TODO: Refactor; this is copied/pasted.
 func (s *Server) Serve(ctx context.Context) error {
-	containerLogger := newWALogger(s.logger.Named("whatsmeow-container"))
-	waContainer := sqlstore.NewWithDB(s.db, "postgres", containerLogger)
-	err := waContainer.Upgrade()
+	db := sqlstore.NewWithDB(
+		s.db,
+		"postgres",
+		newWALogger(s.logger.Named("whatsmeow-container")),
+	)
+	err := db.Upgrade()
 	if err != nil {
 		return fmt.Errorf("failed to upgrade the whatsmeow database: %w", err)
 	}
-	device, err := waContainer.GetFirstDevice()
+
+	device, err := db.GetFirstDevice()
 	if err != nil {
 		return fmt.Errorf("failed to get the first device: %w", err)
 	}
 
-	clientLogger := newWALogger(s.logger.Named("whatsmeow-client"))
-	s.client = whatsmeow.NewClient(device, clientLogger)
-
+	s.client = whatsmeow.NewClient(
+		device,
+		newWALogger(s.logger.Named("whatsmeow-client")),
+	)
 	s.client.AddEventHandler(s.eventHandler)
 
 	if s.client.Store.ID == nil {
