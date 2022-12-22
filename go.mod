@@ -5,7 +5,8 @@ go 1.19
 require (
 	github.com/jackc/pgx/v5 v5.2.0
 	github.com/mdp/qrterminal v1.0.1
-	go.mau.fi/whatsmeow v0.0.0-20221213225758-70ef67df3c68
+	github.com/spf13/pflag v1.0.5
+	go.mau.fi/whatsmeow v0.0.0-20221221211611-6a0e825b4049
 	go.uber.org/zap v1.24.0
 )
 
