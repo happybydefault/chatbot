@@ -16,9 +16,9 @@ import (
 )
 
 type Server struct {
-	logger   *zap.Logger
-	db       *sql.DB
-	waClient *whatsmeow.Client
+	logger *zap.Logger
+	db     *sql.DB
+	client *whatsmeow.Client
 }
 
 func NewServer(config Config) (*Server, error) {
@@ -35,7 +35,7 @@ func NewServer(config Config) (*Server, error) {
 }
 
 func (s *Server) Close() error {
-	s.waClient.Disconnect()
+	s.client.Disconnect()
 	s.logger.Debug("disconnected from WhatsApp")
 
 	err := s.db.Close()
@@ -49,8 +49,8 @@ func (s *Server) Close() error {
 
 // TODO: Refactor; this is copied/pasted.
 func (s *Server) Serve(ctx context.Context) error {
-	dbLogger := newWALogger(s.logger.Named("wa-db"))
-	waContainer := sqlstore.NewWithDB(s.db, "postgres", dbLogger)
+	containerLogger := newWALogger(s.logger.Named("whatsmeow-container"))
+	waContainer := sqlstore.NewWithDB(s.db, "postgres", containerLogger)
 	err := waContainer.Upgrade()
 	if err != nil {
 		return fmt.Errorf("failed to upgrade the whatsmeow database: %w", err)
@@ -60,15 +60,15 @@ func (s *Server) Serve(ctx context.Context) error {
 		return fmt.Errorf("failed to get the first device: %w", err)
 	}
 
-	clientLogger := newWALogger(s.logger.Named("wa-client"))
-	s.waClient = whatsmeow.NewClient(device, clientLogger)
+	clientLogger := newWALogger(s.logger.Named("whatsmeow-client"))
+	s.client = whatsmeow.NewClient(device, clientLogger)
 
-	s.waClient.AddEventHandler(s.eventHandler)
+	s.client.AddEventHandler(s.eventHandler)
 
-	if s.waClient.Store.ID == nil {
+	if s.client.Store.ID == nil {
 		// No ID stored, new login
-		qrChan, _ := s.waClient.GetQRChannel(context.Background())
-		err = s.waClient.Connect()
+		qrChan, _ := s.client.GetQRChannel(context.Background())
+		err = s.client.Connect()
 		if err != nil {
 			panic(err)
 		}
@@ -84,7 +84,7 @@ func (s *Server) Serve(ctx context.Context) error {
 		}
 	} else {
 		// Already logged in, just connect
-		err = s.waClient.Connect()
+		err = s.client.Connect()
 		if err != nil {
 			panic(err)
 		}
