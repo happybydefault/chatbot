@@ -67,7 +67,7 @@ func (s *Server) Serve(ctx context.Context) error {
 
 	if s.client.Store.ID == nil {
 		// No ID stored, new login
-		qrChan, _ := s.client.GetQRChannel(context.Background())
+		qrChan, _ := s.client.GetQRChannel(ctx)
 		err = s.client.Connect()
 		if err != nil {
 			panic(err)
