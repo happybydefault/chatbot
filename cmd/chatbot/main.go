@@ -49,16 +49,16 @@ func main() {
 }
 
 func newLogger(development bool) (*zap.Logger, error) {
-	var config zap.Config
+	var cfg zap.Config
 
 	if development {
-		config = zap.NewDevelopmentConfig()
-		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		cfg = zap.NewDevelopmentConfig()
+		cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	} else {
-		config = zap.NewProductionConfig()
+		cfg = zap.NewProductionConfig()
 	}
 
-	logger, err := config.Build()
+	logger, err := cfg.Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build logger: %w", err)
 	}
