@@ -10,9 +10,11 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/mdp/qrterminal"
 	"go.mau.fi/whatsmeow"
+	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types/events"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 type Server struct {
@@ -68,7 +70,7 @@ func (s *Server) Serve(ctx context.Context) error {
 		device,
 		newWALogger(s.logger.Named("whatsmeow-client")),
 	)
-	s.client.AddEventHandler(s.eventHandler)
+	s.client.AddEventHandler(s.eventHandler(ctx))
 
 	if s.client.Store.ID == nil {
 		// No ID stored, new login
@@ -102,17 +104,25 @@ func (s *Server) Serve(ctx context.Context) error {
 }
 
 // TODO: Refactor; this is copied/pasted.
-func (s *Server) eventHandler(event interface{}) {
-	switch e := event.(type) {
-	case *events.Message:
-		s.logger.Info(
-			"message received",
-			zap.String("message", e.Message.GetConversation()),
-		)
-	default:
-		s.logger.Debug(
-			"unhandled event received",
-			zap.String("event", fmt.Sprintf("%#v", event)),
-		)
+func (s *Server) eventHandler(ctx context.Context) func(event interface{}) {
+	return func(event interface{}) {
+		switch e := event.(type) {
+		case *events.Message:
+			s.logger.Info(
+				"message received",
+				zap.String("message", e.Message.GetConversation()),
+			)
+
+			message := &waProto.Message{
+				Conversation: proto.String(fmt.Sprintf("event: %#v", e)),
+			}
+
+			s.client.SendMessage(ctx, e.Info.Chat, "", message)
+		default:
+			s.logger.Debug(
+				"unhandled event received",
+				zap.String("event", fmt.Sprintf("%#v", event)),
+			)
+		}
 	}
 }
