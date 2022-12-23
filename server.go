@@ -114,7 +114,11 @@ func (s *Server) eventHandler(ctx context.Context) func(event interface{}) {
 			)
 
 			message := &waProto.Message{
-				Conversation: proto.String(fmt.Sprintf("event: %#v", e)),
+				Conversation: proto.String(fmt.Sprintf(
+					"message: %q\n\nevent: %#v",
+					e.Message.GetConversation(),
+					e,
+				)),
 			}
 
 			s.client.SendMessage(ctx, e.Info.Chat, "", message)
