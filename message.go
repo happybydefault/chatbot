@@ -18,13 +18,6 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 		zap.String("message", message.Message.GetConversation()),
 	)
 
-	time.Sleep(1 * time.Second)
-	err := s.client.SendChatPresence(message.Info.Chat, types.ChatPresenceComposing, "")
-	if err != nil {
-		return fmt.Errorf("failed to send chat composing presence: %w", err)
-	}
-
-	time.Sleep(3 * time.Second)
 	response := &waProto.Message{
 		Conversation: proto.String(fmt.Sprintf(
 			"Hello! You said: %q",
@@ -32,10 +25,27 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 		)),
 	}
 
-	_, err = s.client.SendMessage(ctx, message.Info.Chat, "", response)
-	if err != nil {
-		return fmt.Errorf("failed to send message: %w", err)
-	}
+	presenceTimer := time.NewTimer(time.Second)
+	defer presenceTimer.Stop()
 
-	return nil
+	responseTimer := time.NewTimer(3 * time.Second)
+	defer responseTimer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-presenceTimer.C:
+			err := s.client.SendChatPresence(message.Info.Chat, types.ChatPresenceComposing, "")
+			if err != nil {
+				return fmt.Errorf("failed to send chat composing presence: %w", err)
+			}
+		case <-responseTimer.C:
+			_, err := s.client.SendMessage(ctx, message.Info.Chat, "", response)
+			if err != nil {
+				return fmt.Errorf("failed to send message: %w", err)
+			}
+			return nil
+		}
+	}
 }
