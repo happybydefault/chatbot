@@ -12,7 +12,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TODO: This function is not exiting gracefully.
 func (s *Server) handleMessage(ctx context.Context, message *events.Message) error {
 	s.logger.Info(
 		"Message event received",

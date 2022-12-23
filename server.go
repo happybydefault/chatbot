@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -17,6 +19,7 @@ type Server struct {
 	logger *zap.Logger
 	db     *sql.DB
 	client *whatsmeow.Client
+	wg     sync.WaitGroup
 }
 
 func NewServer(config Config) (*Server, error) {
@@ -60,6 +63,8 @@ func (s *Server) Serve(ctx context.Context) error {
 	}
 
 	<-ctx.Done()
+	s.logger.Info("waiting for all event handlers to finish before shutting down")
+	s.wg.Wait()
 	s.logger.Info("shutting down")
 	s.close()
 
@@ -68,8 +73,16 @@ func (s *Server) Serve(ctx context.Context) error {
 
 func (s *Server) eventHandler(ctx context.Context) func(event interface{}) {
 	return func(event interface{}) {
+		s.wg.Add(1)
+		defer s.wg.Done()
+
 		switch e := event.(type) {
 		case *events.Message:
+			// Starting from a background context,
+			// so the message continues being handled when the server is shutting down.
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
 			err := s.handleMessage(ctx, e)
 			if err != nil {
 				s.logger.Error("failed to handle Message event", zap.Error(err))
