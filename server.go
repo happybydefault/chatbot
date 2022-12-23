@@ -4,11 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/mdp/qrterminal"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types/events"
@@ -56,28 +54,9 @@ func (s *Server) Serve(ctx context.Context) error {
 	)
 	s.client.AddEventHandler(s.eventHandler(ctx))
 
-	// TODO: Refactor; this is copied/pasted.
-	if s.client.Store.ID == nil {
-		ch, _ := s.client.GetQRChannel(ctx)
-		err = s.client.Connect()
-		if err != nil {
-			return fmt.Errorf("failed to connect the client to WhatsApp: %w", err)
-		}
-		for event := range ch {
-			if event.Event == "code" {
-				qrterminal.GenerateHalfBlock(event.Code, qrterminal.L, os.Stdout)
-			} else {
-				s.logger.Info(
-					"received unhandled login event",
-					zap.String("login_event", event.Event),
-				)
-			}
-		}
-	} else {
-		err = s.client.Connect()
-		if err != nil {
-			return fmt.Errorf("failed to connect the client to WhatsApp: %w", err)
-		}
+	err = s.client.Connect()
+	if err != nil {
+		return fmt.Errorf("failed to connect the client to WhatsApp: %w", err)
 	}
 
 	<-ctx.Done()
@@ -93,7 +72,19 @@ func (s *Server) eventHandler(ctx context.Context) func(event interface{}) {
 		case *events.Message:
 			err := s.handleMessage(ctx, e)
 			if err != nil {
-				s.logger.Error("failed to handle message", zap.Error(err))
+				s.logger.Error("failed to handle Message event", zap.Error(err))
+				return
+			}
+		case *events.QR:
+			err := s.handleQR(ctx, e)
+			if err != nil {
+				s.logger.Error("failed to handle QR event", zap.Error(err))
+				return
+			}
+		case *events.LoggedOut:
+			err := s.handleLoggedOut(ctx, e)
+			if err != nil {
+				s.logger.Error("failed to handle LoggedOut event", zap.Error(err))
 				return
 			}
 		default:

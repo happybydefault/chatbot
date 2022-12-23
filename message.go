@@ -15,7 +15,7 @@ import (
 // TODO: This function is not exiting gracefully.
 func (s *Server) handleMessage(ctx context.Context, message *events.Message) error {
 	s.logger.Info(
-		"message received",
+		"Message event received",
 		zap.String("message", message.Message.GetConversation()),
 	)
 
