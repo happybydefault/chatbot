@@ -34,19 +34,6 @@ func NewServer(config Config) (*Server, error) {
 	}, nil
 }
 
-func (s *Server) Close() error {
-	s.client.Disconnect()
-	s.logger.Debug("disconnected from WhatsApp")
-
-	err := s.db.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close database connection: %w", err)
-	}
-	s.logger.Debug("closed database")
-
-	return nil
-}
-
 func (s *Server) Serve(ctx context.Context) error {
 	db := sqlstore.NewWithDB(
 		s.db,
@@ -95,6 +82,7 @@ func (s *Server) Serve(ctx context.Context) error {
 
 	<-ctx.Done()
 	s.logger.Info("shutting down")
+	s.close()
 
 	return nil
 }
@@ -115,4 +103,17 @@ func (s *Server) eventHandler(ctx context.Context) func(event interface{}) {
 			)
 		}
 	}
+}
+
+func (s *Server) close() error {
+	s.client.Disconnect()
+	s.logger.Debug("disconnected from WhatsApp")
+
+	err := s.db.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close database connection: %w", err)
+	}
+	s.logger.Debug("closed database")
+
+	return nil
 }
