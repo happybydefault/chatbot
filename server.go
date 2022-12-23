@@ -70,19 +70,19 @@ func (s *Server) Serve(ctx context.Context) error {
 	s.client.AddEventHandler(s.eventHandler(ctx))
 
 	// TODO: Refactor; this is copied/pasted.
-	if !s.client.IsLoggedIn() {
+	if s.client.Store.ID == nil {
 		ch, _ := s.client.GetQRChannel(ctx)
 		err = s.client.Connect()
 		if err != nil {
 			return fmt.Errorf("failed to connect the client to WhatsApp: %w", err)
 		}
-		for evt := range ch {
-			if evt.Event == "code" {
-				qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
+		for event := range ch {
+			if event.Event == "code" {
+				qrterminal.GenerateHalfBlock(event.Code, qrterminal.L, os.Stdout)
 			} else {
 				s.logger.Info(
 					"received unhandled login event",
-					zap.String("login_event", evt.Event),
+					zap.String("login_event", event.Event),
 				)
 			}
 		}
