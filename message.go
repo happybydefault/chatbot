@@ -41,10 +41,12 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 				return fmt.Errorf("failed to send chat composing presence: %w", err)
 			}
 		case <-responseTimer.C:
-			_, err := s.client.SendMessage(ctx, message.Info.Chat, "", response)
+			report, err := s.client.SendMessage(ctx, message.Info.Chat, "", response)
 			if err != nil {
 				return fmt.Errorf("failed to send message: %w", err)
 			}
+			s.logger.Debug("message sent", zap.String("sent_message_id", report.ID))
+
 			return nil
 		}
 	}
