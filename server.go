@@ -10,11 +10,9 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/mdp/qrterminal"
 	"go.mau.fi/whatsmeow"
-	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types/events"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 type Server struct {
@@ -103,30 +101,17 @@ func (s *Server) Serve(ctx context.Context) error {
 
 func (s *Server) eventHandler(ctx context.Context) func(event interface{}) {
 	return func(event interface{}) {
-		switch event := event.(type) {
+		switch e := event.(type) {
 		case *events.Message:
-			s.logger.Info(
-				"message received",
-				zap.String("message", event.Message.GetConversation()),
-			)
-
-			message := &waProto.Message{
-				Conversation: proto.String(fmt.Sprintf(
-					"message: %q\n\nevent: %#v",
-					event.Message.GetConversation(),
-					event,
-				)),
-			}
-
-			_, err := s.client.SendMessage(ctx, event.Info.Chat, "", message)
+			err := s.handleMessage(ctx, e)
 			if err != nil {
-				s.logger.Error("failed to send message", zap.Error(err))
+				s.logger.Error("failed to handle message", zap.Error(err))
 				return
 			}
 		default:
 			s.logger.Debug(
 				"unhandled event received",
-				zap.String("event", fmt.Sprintf("%#v", event)),
+				zap.String("event", fmt.Sprintf("%#v", e)),
 			)
 		}
 	}
