@@ -49,7 +49,6 @@ func (s *Server) Close() error {
 	return nil
 }
 
-// TODO: Refactor; this is copied/pasted.
 func (s *Server) Serve(ctx context.Context) error {
 	db := sqlstore.NewWithDB(
 		s.db,
@@ -72,28 +71,27 @@ func (s *Server) Serve(ctx context.Context) error {
 	)
 	s.client.AddEventHandler(s.eventHandler(ctx))
 
-	if s.client.Store.ID == nil {
-		// No ID stored, new login
-		qrChan, _ := s.client.GetQRChannel(ctx)
+	// TODO: Refactor; this is copied/pasted.
+	if !s.client.IsLoggedIn() {
+		ch, _ := s.client.GetQRChannel(ctx)
 		err = s.client.Connect()
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("failed to connect the client to WhatsApp: %w", err)
 		}
-		for evt := range qrChan {
+		for evt := range ch {
 			if evt.Event == "code" {
 				qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
 			} else {
 				s.logger.Info(
-					"received login event",
+					"received unhandled login event",
 					zap.String("login_event", evt.Event),
 				)
 			}
 		}
 	} else {
-		// Already logged in, just connect
 		err = s.client.Connect()
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("failed to connect the client to WhatsApp: %w", err)
 		}
 	}
 
@@ -103,25 +101,24 @@ func (s *Server) Serve(ctx context.Context) error {
 	return nil
 }
 
-// TODO: Refactor; this is copied/pasted.
 func (s *Server) eventHandler(ctx context.Context) func(event interface{}) {
 	return func(event interface{}) {
-		switch e := event.(type) {
+		switch event := event.(type) {
 		case *events.Message:
 			s.logger.Info(
 				"message received",
-				zap.String("message", e.Message.GetConversation()),
+				zap.String("message", event.Message.GetConversation()),
 			)
 
 			message := &waProto.Message{
 				Conversation: proto.String(fmt.Sprintf(
 					"message: %q\n\nevent: %#v",
-					e.Message.GetConversation(),
-					e,
+					event.Message.GetConversation(),
+					event,
 				)),
 			}
 
-			_, err := s.client.SendMessage(ctx, e.Info.Chat, "", message)
+			_, err := s.client.SendMessage(ctx, event.Info.Chat, "", message)
 			if err != nil {
 				s.logger.Error("failed to send message", zap.Error(err))
 				return
