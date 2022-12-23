@@ -121,7 +121,11 @@ func (s *Server) eventHandler(ctx context.Context) func(event interface{}) {
 				)),
 			}
 
-			s.client.SendMessage(ctx, e.Info.Chat, "", message)
+			_, err := s.client.SendMessage(ctx, e.Info.Chat, "", message)
+			if err != nil {
+				s.logger.Error("failed to send message", zap.Error(err))
+				return
+			}
 		default:
 			s.logger.Debug(
 				"unhandled event received",
