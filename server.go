@@ -51,7 +51,7 @@ func (s *Server) Serve(ctx context.Context) error {
 	db := sqlstore.NewWithDB(
 		s.db,
 		"postgres",
-		newWALogger(s.logger.Named("whatsmeow-container")),
+		newWALogger(s.logger.Named("whatsmeow-db")),
 	)
 	err := db.Upgrade()
 	if err != nil {
