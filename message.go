@@ -66,7 +66,7 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 		message.Message.GetConversation(),
 	}
 
-	completionResponse, err := s.gpt3.Completion(ctx, s.newCompletionRequest(prompts))
+	completionResponse, err := s.completion(ctx, prompts)
 	if err != nil {
 		return fmt.Errorf("failed to get completion response: %w", err)
 	}
@@ -98,7 +98,7 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 	return nil
 }
 
-func (s *Server) newCompletionRequest(prompts []string) gpt3.CompletionRequest {
+func newCompletionRequest(prompts []string) gpt3.CompletionRequest {
 	var (
 		maxTokens           = 512
 		temperature float32 = 0.0
