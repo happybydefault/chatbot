@@ -74,6 +74,7 @@ func (s *Server) Serve(ctx context.Context) error {
 	}
 
 	<-ctx.Done()
+	s.whatsapp.RemoveEventHandlers()
 
 	s.logger.Info("waiting for all event handlers to finish before shutting down")
 	s.wg.Wait()
