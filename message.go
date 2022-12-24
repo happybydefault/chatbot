@@ -3,6 +3,7 @@ package chatbot
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/PullRequestInc/go-gpt3"
@@ -58,6 +59,9 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 		return fmt.Errorf("failed to send chat composing presence: %w", err)
 	}
 
+	timer := time.NewTimer(500 * time.Millisecond)
+	defer timer.Stop()
+
 	prompts := []string{
 		message.Message.GetConversation(),
 	}
@@ -74,27 +78,24 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 		zap.String("completion_response", fmt.Sprintf("%#v", completionResponse)),
 	)
 
+	conversationResponse := completionResponse.Choices[0].Text
+	conversationResponse = strings.TrimSpace(conversationResponse)
+
 	response := &waProto.Message{
-		Conversation: proto.String(completionResponse.Choices[0].Text),
+		Conversation: proto.String(conversationResponse),
 	}
 
-	timer := time.NewTimer(500 * time.Millisecond)
-	defer timer.Stop()
+	// Make sure there is a delay between receiving a message and sending a response,
+	// to avoid being tagged as a bot and getting banned.
+	<-timer.C
 
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-timer.C:
-			report, err := s.whatsapp.SendMessage(ctx, message.Info.Chat, "", response)
-			if err != nil {
-				return fmt.Errorf("failed to send message: %w", err)
-			}
-			s.logger.Debug("message sent", zap.String("sent_message_id", report.ID))
-
-			return nil
-		}
+	report, err := s.whatsapp.SendMessage(ctx, message.Info.Chat, "", response)
+	if err != nil {
+		return fmt.Errorf("failed to send message: %w", err)
 	}
+	s.logger.Debug("message sent", zap.String("sent_message_id", report.ID))
+
+	return nil
 }
 
 func (s *Server) newCompletionRequest(prompts []string) gpt3.CompletionRequest {
