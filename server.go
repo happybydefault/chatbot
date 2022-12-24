@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store/sqlstore"
+	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	"go.uber.org/zap"
 
@@ -67,10 +68,22 @@ func (s *Server) Serve(ctx context.Context) error {
 		return fmt.Errorf("failed to connect the client to WhatsApp: %w", err)
 	}
 
+	err = s.client.SendPresence(types.PresenceAvailable)
+	if err != nil {
+		return fmt.Errorf("failed to send available presence: %w", err)
+	}
+
 	<-ctx.Done()
+
 	s.logger.Info("waiting for all event handlers to finish before shutting down")
 	s.wg.Wait()
 	s.logger.Info("shutting down")
+
+	err = s.client.SendPresence(types.PresenceUnavailable)
+	if err != nil {
+		return fmt.Errorf("failed to send unavailable presence: %w", err)
+	}
+
 	s.close()
 
 	return nil
