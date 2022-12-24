@@ -17,7 +17,7 @@ func (s *Server) handleLoggedOut(ctx context.Context, loggedOut *events.LoggedOu
 
 	if loggedOut.OnConnect {
 		if loggedOut.Reason.IsLoggedOut() {
-			err := s.client.Store.Delete()
+			err := s.whatsapp.Store.Delete()
 			if err != nil {
 				return fmt.Errorf("failed to delete store: %w", err)
 			}

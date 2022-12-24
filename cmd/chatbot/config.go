@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/spf13/pflag"
 )
 
@@ -8,10 +10,13 @@ type config struct {
 	development        bool
 	userIDs            []string
 	postgresConnString string
+	openAIAPIKey       string
 }
 
 func newConfig(args []string) (config, error) {
-	var cfg config
+	cfg := config{
+		openAIAPIKey: os.Getenv("OPENAI_API_KEY"),
+	}
 
 	flagSet := pflag.NewFlagSet(programName, pflag.ContinueOnError)
 

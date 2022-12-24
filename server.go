@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PullRequestInc/go-gpt3"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"go.mau.fi/whatsmeow"
@@ -19,10 +20,11 @@ import (
 )
 
 type Server struct {
-	logger *zap.Logger
-	store  data.Store
-	db     *sql.DB
-	client *whatsmeow.Client
+	logger   *zap.Logger
+	store    data.Store
+	db       *sql.DB
+	whatsapp *whatsmeow.Client
+	gpt3     gpt3.Client
 
 	wg sync.WaitGroup
 }
@@ -34,10 +36,13 @@ func NewServer(config Config) (*Server, error) {
 	}
 	db := stdlib.OpenDB(*connConfig)
 
+	gpt3Client := gpt3.NewClient(config.OpenAIAPIKey, gpt3.WithDefaultEngine(gpt3.TextDavinci003Engine))
+
 	return &Server{
 		logger: config.Logger,
 		store:  config.Store,
 		db:     db,
+		gpt3:   gpt3Client,
 	}, nil
 }
 
@@ -57,13 +62,13 @@ func (s *Server) Serve(ctx context.Context) error {
 		return fmt.Errorf("failed to get the first device: %w", err)
 	}
 
-	s.client = whatsmeow.NewClient(
+	s.whatsapp = whatsmeow.NewClient(
 		device,
 		newWALogger(s.logger.Named("whatsmeow-client")),
 	)
-	s.client.AddEventHandler(s.eventHandler(ctx))
+	s.whatsapp.AddEventHandler(s.eventHandler(ctx))
 
-	err = s.client.Connect()
+	err = s.whatsapp.Connect()
 	if err != nil {
 		return fmt.Errorf("failed to connect the client to WhatsApp: %w", err)
 	}
@@ -74,7 +79,7 @@ func (s *Server) Serve(ctx context.Context) error {
 	s.wg.Wait()
 	s.logger.Info("shutting down")
 
-	err = s.client.SendPresence(types.PresenceUnavailable)
+	err = s.whatsapp.SendPresence(types.PresenceUnavailable)
 	if err != nil {
 		return fmt.Errorf("failed to send unavailable presence: %w", err)
 	}
@@ -132,7 +137,7 @@ func (s *Server) eventHandler(ctx context.Context) func(event interface{}) {
 }
 
 func (s *Server) close() error {
-	s.client.Disconnect()
+	s.whatsapp.Disconnect()
 	s.logger.Debug("disconnected from WhatsApp")
 
 	err := s.db.Close()

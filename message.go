@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/PullRequestInc/go-gpt3"
 	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
@@ -22,7 +23,7 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 
 	s.logger.Sugar().Debugf("sender: %#v", message.Info.Sender)
 
-	err := s.client.MarkRead(
+	err := s.whatsapp.MarkRead(
 		[]types.MessageID{
 			message.Info.ID,
 		},
@@ -52,16 +53,29 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 	}
 	s.logger.Debug("user exists in the store")
 
-	err = s.client.SendChatPresence(message.Info.Chat, types.ChatPresenceComposing, "")
+	err = s.whatsapp.SendChatPresence(message.Info.Chat, types.ChatPresenceComposing, "")
 	if err != nil {
 		return fmt.Errorf("failed to send chat composing presence: %w", err)
 	}
 
+	prompts := []string{
+		message.Message.GetConversation(),
+	}
+
+	completionResponse, err := s.gpt3.Completion(ctx, s.newCompletionRequest(prompts))
+	if err != nil {
+		return fmt.Errorf("failed to get completion response: %w", err)
+	}
+	if len(completionResponse.Choices) == 0 {
+		return fmt.Errorf("received empty slice of completion choices")
+	}
+	s.logger.Debug(
+		"received completion response",
+		zap.String("completion_response", fmt.Sprintf("%#v", completionResponse)),
+	)
+
 	response := &waProto.Message{
-		Conversation: proto.String(fmt.Sprintf(
-			"Hello! You said: %q",
-			message.Message.GetConversation(),
-		)),
+		Conversation: proto.String(completionResponse.Choices[0].Text),
 	}
 
 	timer := time.NewTimer(500 * time.Millisecond)
@@ -72,7 +86,7 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-timer.C:
-			report, err := s.client.SendMessage(ctx, message.Info.Chat, "", response)
+			report, err := s.whatsapp.SendMessage(ctx, message.Info.Chat, "", response)
 			if err != nil {
 				return fmt.Errorf("failed to send message: %w", err)
 			}
@@ -81,4 +95,19 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 			return nil
 		}
 	}
+}
+
+func (s *Server) newCompletionRequest(prompts []string) gpt3.CompletionRequest {
+	var (
+		maxTokens           = 512
+		temperature float32 = 0.0
+	)
+
+	completionRequest := gpt3.CompletionRequest{
+		Prompt:      prompts,
+		MaxTokens:   &maxTokens,
+		Temperature: &temperature,
+	}
+
+	return completionRequest
 }

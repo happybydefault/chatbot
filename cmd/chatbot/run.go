@@ -17,6 +17,7 @@ func run(ctx context.Context, logger *zap.Logger, cfg config) error {
 		Logger:             logger,
 		Store:              store,
 		PostgresConnString: cfg.postgresConnString,
+		OpenAIAPIKey:       cfg.openAIAPIKey,
 	}
 
 	server, err := chatbot.NewServer(chatbotConfig)

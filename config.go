@@ -10,4 +10,5 @@ type Config struct {
 	Logger             *zap.Logger
 	Store              data.Store
 	PostgresConnString string
+	OpenAIAPIKey       string
 }
