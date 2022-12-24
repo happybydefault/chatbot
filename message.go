@@ -52,15 +52,17 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 	}
 	s.logger.Debug("user exists in the store")
 
+	err = s.client.SendChatPresence(message.Info.Chat, types.ChatPresenceComposing, "")
+	if err != nil {
+		return fmt.Errorf("failed to send chat composing presence: %w", err)
+	}
+
 	response := &waProto.Message{
 		Conversation: proto.String(fmt.Sprintf(
 			"Hello! You said: %q",
 			message.Message.GetConversation(),
 		)),
 	}
-
-	presenceTimer := time.NewTimer(time.Second)
-	defer presenceTimer.Stop()
 
 	responseTimer := time.NewTimer(3 * time.Second)
 	defer responseTimer.Stop()
@@ -69,11 +71,6 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-presenceTimer.C:
-			err := s.client.SendChatPresence(message.Info.Chat, types.ChatPresenceComposing, "")
-			if err != nil {
-				return fmt.Errorf("failed to send chat composing presence: %w", err)
-			}
 		case <-responseTimer.C:
 			report, err := s.client.SendMessage(ctx, message.Info.Chat, "", response)
 			if err != nil {
