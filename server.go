@@ -68,16 +68,6 @@ func (s *Server) Serve(ctx context.Context) error {
 		return fmt.Errorf("failed to connect the client to WhatsApp: %w", err)
 	}
 
-	err = s.client.SendPresence(types.PresenceAvailable)
-	if err != nil {
-		return fmt.Errorf("failed to send available presence: %w", err)
-	}
-
-	err = s.client.SetStatusMessage("Hello world!")
-	if err != nil {
-		return fmt.Errorf("failed to set status message: %w", err)
-	}
-
 	<-ctx.Done()
 
 	s.logger.Info("waiting for all event handlers to finish before shutting down")
@@ -103,6 +93,12 @@ func (s *Server) eventHandler(ctx context.Context) func(event interface{}) {
 		defer s.wg.Done()
 
 		switch e := event.(type) {
+		case *events.Connected:
+			err := s.handleConnected(ctx, e)
+			if err != nil {
+				s.logger.Error("failed to handle connected event", zap.Error(err))
+				return
+			}
 		case *events.Message:
 			// Starting from a background context,
 			// so the message continues being handled when the server is shutting down.
