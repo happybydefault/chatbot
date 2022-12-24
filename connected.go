@@ -14,7 +14,7 @@ func (s *Server) handleConnected(ctx context.Context, connected *events.Connecte
 		return fmt.Errorf("failed to send available presence: %w", err)
 	}
 
-	err = s.client.SetStatusMessage("I'm back!")
+	err = s.client.SetStatusMessage("👋")
 	if err != nil {
 		return fmt.Errorf("failed to set status message: %w", err)
 	}
