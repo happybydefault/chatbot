@@ -13,13 +13,17 @@ import (
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types/events"
 	"go.uber.org/zap"
+
+	"github.com/happybydefault/chatbot/data"
 )
 
 type Server struct {
 	logger *zap.Logger
+	store  data.Store
 	db     *sql.DB
 	client *whatsmeow.Client
-	wg     sync.WaitGroup
+
+	wg sync.WaitGroup
 }
 
 func NewServer(config Config) (*Server, error) {
@@ -31,6 +35,7 @@ func NewServer(config Config) (*Server, error) {
 
 	return &Server{
 		logger: config.Logger,
+		store:  config.Store,
 		db:     db,
 	}, nil
 }

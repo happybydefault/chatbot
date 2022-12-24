@@ -6,6 +6,7 @@ import (
 
 type config struct {
 	development        bool
+	userIDs            []string
 	postgresConnString string
 }
 
@@ -20,6 +21,13 @@ func newConfig(args []string) (config, error) {
 		"d",
 		false,
 		"Enable development mode",
+	)
+	flagSet.StringSliceVarP(
+		&cfg.userIDs,
+		"users",
+		"u",
+		nil,
+		"User IDs to add to the store",
 	)
 	flagSet.StringVarP(
 		&cfg.postgresConnString,

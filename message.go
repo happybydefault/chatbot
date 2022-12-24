@@ -10,6 +10,8 @@ import (
 	"go.mau.fi/whatsmeow/types/events"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/happybydefault/chatbot/data"
 )
 
 func (s *Server) handleMessage(ctx context.Context, message *events.Message) error {
@@ -17,6 +19,8 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 		"Message event received",
 		zap.String("message", message.Message.GetConversation()),
 	)
+
+	s.logger.Sugar().Debugf("sender: %#v", message.Info.Sender)
 
 	err := s.client.MarkRead(
 		[]types.MessageID{
@@ -34,6 +38,19 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 		s.logger.Debug("ignoring Message event with empty Conversation")
 		return nil
 	}
+
+	_, err = s.store.User(ctx, message.Info.Sender.User)
+	if err != nil {
+		if err == data.ErrNotFound {
+			s.logger.Warn(
+				"user does not exist in the store",
+				zap.String("user_id", message.Info.Sender.User),
+			)
+			return nil
+		}
+		return fmt.Errorf("failed to get user from store: %w", err)
+	}
+	s.logger.Debug("user exists in the store")
 
 	response := &waProto.Message{
 		Conversation: proto.String(fmt.Sprintf(

@@ -7,11 +7,15 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/happybydefault/chatbot"
+	"github.com/happybydefault/chatbot/memory"
 )
 
 func run(ctx context.Context, logger *zap.Logger, cfg config) error {
+	store := memory.NewStore(cfg.userIDs)
+
 	chatbotConfig := chatbot.Config{
 		Logger:             logger,
+		Store:              store,
 		PostgresConnString: cfg.postgresConnString,
 	}
 
