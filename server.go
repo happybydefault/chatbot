@@ -73,6 +73,11 @@ func (s *Server) Serve(ctx context.Context) error {
 		return fmt.Errorf("failed to send available presence: %w", err)
 	}
 
+	err = s.client.SetStatusMessage("Hello world!")
+	if err != nil {
+		return fmt.Errorf("failed to set status message: %w", err)
+	}
+
 	<-ctx.Done()
 
 	s.logger.Info("waiting for all event handlers to finish before shutting down")
