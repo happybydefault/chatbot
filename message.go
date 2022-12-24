@@ -18,6 +18,23 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 		zap.String("message", message.Message.GetConversation()),
 	)
 
+	err := s.client.MarkRead(
+		[]types.MessageID{
+			message.Info.ID,
+		},
+		time.Now(),
+		message.Info.Chat,
+		message.Info.Sender,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to mark message as read: %w", err)
+	}
+
+	if message.Message.GetConversation() == "" {
+		s.logger.Debug("ignoring Message event with empty Conversation")
+		return nil
+	}
+
 	response := &waProto.Message{
 		Conversation: proto.String(fmt.Sprintf(
 			"Hello! You said: %q",
