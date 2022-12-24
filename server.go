@@ -84,7 +84,10 @@ func (s *Server) Serve(ctx context.Context) error {
 		return fmt.Errorf("failed to send unavailable presence: %w", err)
 	}
 
-	s.close()
+	err = s.close()
+	if err != nil {
+		return fmt.Errorf("failed to close the server: %w", err)
+	}
 
 	return nil
 }
