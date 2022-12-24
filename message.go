@@ -62,11 +62,20 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 	timer := time.NewTimer(500 * time.Millisecond)
 	defer timer.Stop()
 
-	prompts := []string{
-		message.Message.GetConversation(),
-	}
+	// TODO: Move prefix out of the function. Maybe use (Go) text templates.
+	// TODO: Maybe encode conversation between the person and the AI as JSON.
+	prefix := "The following is a conversation with an AI called Chatbot, the smartest of all beings." +
+		" The assistant is helpful, creative, clever, and very friendly." +
+		"\n\n Person: "
 
-	completionResponse, err := s.completion(ctx, prompts)
+	prompt := fmt.Sprintf(
+		"%s\n\n%q\n\n%s:",
+		prefix,
+		message.Message.GetConversation(),
+		"Chatbot:",
+	)
+
+	completionResponse, err := s.completion(ctx, prompt)
 	if err != nil {
 		return fmt.Errorf("failed to get completion response: %w", err)
 	}

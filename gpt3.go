@@ -11,12 +11,14 @@ import (
 	"go.uber.org/zap"
 )
 
-func (s *Server) completion(ctx context.Context, prompts []string) (*gpt3.CompletionResponse, error) {
+func (s *Server) completion(ctx context.Context, prompt string) (*gpt3.CompletionResponse, error) {
 	var completionResponse *gpt3.CompletionResponse
 
 	fn := func() error {
+		completionRequest := newCompletionRequest([]string{prompt})
+
 		var err error
-		completionResponse, err = s.gpt3.Completion(ctx, newCompletionRequest(prompts))
+		completionResponse, err = s.gpt3.Completion(ctx, completionRequest)
 		if err != nil {
 			var apiErr *gpt3.APIError
 			if errors.As(err, &apiErr) {
