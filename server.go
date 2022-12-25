@@ -36,39 +36,41 @@ func NewServer(config Config) (*Server, error) {
 	}
 	db := stdlib.OpenDB(*connConfig)
 
+	whatsappDB := sqlstore.NewWithDB(
+		db,
+		"postgres",
+		newWALogger(config.Logger.Named("whatsapp-db")),
+	)
+	err = whatsappDB.Upgrade()
+	if err != nil {
+		return nil, fmt.Errorf("failed to upgrade the whatsmeow database: %w", err)
+	}
+
+	device, err := whatsappDB.GetFirstDevice()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get the first device: %w", err)
+	}
+
+	whatsappClient := whatsmeow.NewClient(
+		device,
+		newWALogger(config.Logger.Named("whatsapp-client")),
+	)
+
 	gpt3Client := gpt3.NewClient(config.OpenAIAPIKey, gpt3.WithDefaultEngine(gpt3.TextDavinci003Engine))
 
 	return &Server{
-		logger: config.Logger,
-		store:  config.Store,
-		db:     db,
-		gpt3:   gpt3Client,
+		logger:   config.Logger,
+		store:    config.Store,
+		db:       db,
+		whatsapp: whatsappClient,
+		gpt3:     gpt3Client,
 	}, nil
 }
 
 func (s *Server) Serve(ctx context.Context) error {
-	db := sqlstore.NewWithDB(
-		s.db,
-		"postgres",
-		newWALogger(s.logger.Named("whatsmeow-db")),
-	)
-	err := db.Upgrade()
-	if err != nil {
-		return fmt.Errorf("failed to upgrade the whatsmeow database: %w", err)
-	}
-
-	device, err := db.GetFirstDevice()
-	if err != nil {
-		return fmt.Errorf("failed to get the first device: %w", err)
-	}
-
-	s.whatsapp = whatsmeow.NewClient(
-		device,
-		newWALogger(s.logger.Named("whatsmeow-client")),
-	)
 	s.whatsapp.AddEventHandler(s.eventHandler(ctx))
 
-	err = s.whatsapp.Connect()
+	err := s.whatsapp.Connect()
 	if err != nil {
 		return fmt.Errorf("failed to connect the client to WhatsApp: %w", err)
 	}
