@@ -29,17 +29,21 @@ type Server struct {
 	wg sync.WaitGroup
 }
 
-func NewServer(config Config) (*Server, error) {
-	connConfig, err := pgx.ParseConfig(config.PostgresConnString)
+func NewServer(cfg Config) (*Server, error) {
+	connConfig, err := pgx.ParseConfig(cfg.PostgresConnString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse Postgres connection string: %w", err)
 	}
 	db := stdlib.OpenDB(*connConfig)
 
+	whatsmeowLogger := cfg.Logger.Named("whatsmeow").WithOptions(
+		zap.IncreaseLevel(zap.InfoLevel),
+	)
+
 	whatsappDB := sqlstore.NewWithDB(
 		db,
 		"postgres",
-		newWALogger(config.Logger.Named("whatsmeow-db")),
+		newWALogger(whatsmeowLogger.Named("db")),
 	)
 	err = whatsappDB.Upgrade()
 	if err != nil {
@@ -53,14 +57,14 @@ func NewServer(config Config) (*Server, error) {
 
 	whatsappClient := whatsmeow.NewClient(
 		device,
-		newWALogger(config.Logger.Named("whatsmeow-client")),
+		newWALogger(whatsmeowLogger.Named("client")),
 	)
 
-	gpt3Client := gpt3.NewClient(config.OpenAIAPIKey, gpt3.WithDefaultEngine(gpt3.TextDavinci003Engine))
+	gpt3Client := gpt3.NewClient(cfg.OpenAIAPIKey, gpt3.WithDefaultEngine(gpt3.TextDavinci003Engine))
 
 	return &Server{
-		logger:    config.Logger,
-		store:     config.Store,
+		logger:    cfg.Logger,
+		store:     cfg.Store,
 		db:        db,
 		whatsmeow: whatsappClient,
 		gpt3:      gpt3Client,
