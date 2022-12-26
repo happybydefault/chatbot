@@ -20,11 +20,11 @@ import (
 )
 
 type Server struct {
-	logger   *zap.Logger
-	store    data.Store
-	db       *sql.DB
-	whatsapp *whatsmeow.Client
-	gpt3     gpt3.Client
+	logger    *zap.Logger
+	store     data.Store
+	db        *sql.DB
+	whatsmeow *whatsmeow.Client
+	gpt3      gpt3.Client
 
 	wg sync.WaitGroup
 }
@@ -39,7 +39,7 @@ func NewServer(config Config) (*Server, error) {
 	whatsappDB := sqlstore.NewWithDB(
 		db,
 		"postgres",
-		newWALogger(config.Logger.Named("whatsapp-db")),
+		newWALogger(config.Logger.Named("whatsmeow-db")),
 	)
 	err = whatsappDB.Upgrade()
 	if err != nil {
@@ -53,36 +53,36 @@ func NewServer(config Config) (*Server, error) {
 
 	whatsappClient := whatsmeow.NewClient(
 		device,
-		newWALogger(config.Logger.Named("whatsapp-client")),
+		newWALogger(config.Logger.Named("whatsmeow-client")),
 	)
 
 	gpt3Client := gpt3.NewClient(config.OpenAIAPIKey, gpt3.WithDefaultEngine(gpt3.TextDavinci003Engine))
 
 	return &Server{
-		logger:   config.Logger,
-		store:    config.Store,
-		db:       db,
-		whatsapp: whatsappClient,
-		gpt3:     gpt3Client,
+		logger:    config.Logger,
+		store:     config.Store,
+		db:        db,
+		whatsmeow: whatsappClient,
+		gpt3:      gpt3Client,
 	}, nil
 }
 
 func (s *Server) Serve(ctx context.Context) error {
-	s.whatsapp.AddEventHandler(s.eventHandler(ctx))
+	s.whatsmeow.AddEventHandler(s.eventHandler(ctx))
 
-	err := s.whatsapp.Connect()
+	err := s.whatsmeow.Connect()
 	if err != nil {
-		return fmt.Errorf("failed to connect the client to WhatsApp: %w", err)
+		return fmt.Errorf("failed to connect the whatsmeow client to WhatsApp: %w", err)
 	}
 
 	<-ctx.Done()
-	s.whatsapp.RemoveEventHandlers()
+	s.whatsmeow.RemoveEventHandlers()
 
 	s.logger.Info("waiting for all event handlers to finish before shutting down")
 	s.wg.Wait()
 	s.logger.Info("shutting down")
 
-	err = s.whatsapp.SendPresence(types.PresenceUnavailable)
+	err = s.whatsmeow.SendPresence(types.PresenceUnavailable)
 	if err != nil {
 		return fmt.Errorf("failed to send unavailable presence: %w", err)
 	}
@@ -140,12 +140,12 @@ func (s *Server) eventHandler(ctx context.Context) func(event interface{}) {
 }
 
 func (s *Server) close() error {
-	s.whatsapp.Disconnect()
-	s.logger.Debug("disconnected from WhatsApp")
+	s.whatsmeow.Disconnect()
+	s.logger.Debug("whatsmeow client disconnected from WhatsApp")
 
 	err := s.db.Close()
 	if err != nil {
-		return fmt.Errorf("failed to close database connection: %w", err)
+		return fmt.Errorf("failed to close database: %w", err)
 	}
 	s.logger.Debug("closed database")
 

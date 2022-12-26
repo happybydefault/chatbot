@@ -24,7 +24,7 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 
 	s.logger.Sugar().Debugf("sender: %#v", message.Info.Sender)
 
-	err := s.whatsapp.MarkRead(
+	err := s.whatsmeow.MarkRead(
 		[]types.MessageID{
 			message.Info.ID,
 		},
@@ -54,7 +54,7 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 	}
 	s.logger.Debug("user exists in the store")
 
-	err = s.whatsapp.SendChatPresence(message.Info.Chat, types.ChatPresenceComposing, "")
+	err = s.whatsmeow.SendChatPresence(message.Info.Chat, types.ChatPresenceComposing, "")
 	if err != nil {
 		return fmt.Errorf("failed to send chat composing presence: %w", err)
 	}
@@ -103,7 +103,7 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 	// to avoid being tagged as a bot and getting banned.
 	<-timer.C
 
-	report, err := s.whatsapp.SendMessage(ctx, message.Info.Chat, "", response)
+	report, err := s.whatsmeow.SendMessage(ctx, message.Info.Chat, "", response)
 	if err != nil {
 		return fmt.Errorf("failed to send message: %w", err)
 	}

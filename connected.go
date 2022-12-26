@@ -9,12 +9,12 @@ import (
 )
 
 func (s *Server) handleConnected(ctx context.Context, connected *events.Connected) error {
-	err := s.whatsapp.SendPresence(types.PresenceAvailable)
+	err := s.whatsmeow.SendPresence(types.PresenceAvailable)
 	if err != nil {
 		return fmt.Errorf("failed to send available presence: %w", err)
 	}
 
-	err = s.whatsapp.SetStatusMessage("👋")
+	err = s.whatsmeow.SetStatusMessage("👋")
 	if err != nil {
 		return fmt.Errorf("failed to set status message: %w", err)
 	}
