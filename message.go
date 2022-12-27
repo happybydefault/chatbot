@@ -19,10 +19,8 @@ import (
 func (s *Server) handleMessage(ctx context.Context, message *events.Message) error {
 	s.logger.Info(
 		"Message event received",
-		zap.String("message", message.Message.GetConversation()),
+		zap.String("message", fmt.Sprintf("%#v", message)),
 	)
-
-	s.logger.Sugar().Debugf("sender: %#v", message.Info.Sender)
 
 	err := s.whatsmeow.MarkRead(
 		[]types.MessageID{
