@@ -85,12 +85,7 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 	conversationResponse = strings.TrimSpace(conversationResponse)
 
 	response := &waProto.Message{
-		ExtendedTextMessage: &waProto.ExtendedTextMessage{
-			ContextInfo: &waProto.ContextInfo{
-				QuotedMessage: message.Message,
-			},
-			Text: proto.String(conversationResponse),
-		},
+		Conversation: proto.String(conversationResponse),
 	}
 
 	// Make sure there is a delay between receiving a message and sending a response,
