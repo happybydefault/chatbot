@@ -82,10 +82,6 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) err
 	if len(completionResponse.Choices) == 0 {
 		return fmt.Errorf("received empty slice of completion choices")
 	}
-	s.logger.Debug(
-		"received completion response",
-		zap.String("completion_response", fmt.Sprintf("%#v", completionResponse)),
-	)
 
 	conversationResponse := completionResponse.Choices[0].Text
 	conversationResponse = strings.TrimSpace(conversationResponse)
