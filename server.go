@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/PullRequestInc/go-gpt3"
 	"github.com/jackc/pgx/v5"
@@ -27,6 +26,10 @@ type Server struct {
 	gpt3      gpt3.Client
 
 	wg sync.WaitGroup
+
+	mu           sync.RWMutex
+	state        State
+	pendingChats map[types.JID]struct{}
 }
 
 func NewServer(cfg Config) (*Server, error) {
@@ -63,11 +66,12 @@ func NewServer(cfg Config) (*Server, error) {
 	gpt3Client := gpt3.NewClient(cfg.OpenAIAPIKey, gpt3.WithDefaultEngine(gpt3.TextDavinci003Engine))
 
 	return &Server{
-		logger:    cfg.Logger,
-		store:     cfg.Store,
-		db:        db,
-		whatsmeow: whatsappClient,
-		gpt3:      gpt3Client,
+		logger:       cfg.Logger,
+		store:        cfg.Store,
+		db:           db,
+		whatsmeow:    whatsappClient,
+		gpt3:         gpt3Client,
+		pendingChats: make(map[types.JID]struct{}),
 	}, nil
 }
 
@@ -112,16 +116,7 @@ func (s *Server) eventHandler(ctx context.Context) func(event interface{}) {
 				return
 			}
 		case *events.Message:
-			// Starting from a background context,
-			// so the message continues being handled when the server is shutting down.
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			err := s.handleMessage(ctx, e)
-			if err != nil {
-				s.logger.Error("failed to handle Message event", zap.Error(err))
-				return
-			}
+			s.handleMessage(ctx, e)
 		case *events.QR:
 			err := s.handleQR(ctx, e)
 			if err != nil {
@@ -132,6 +127,18 @@ func (s *Server) eventHandler(ctx context.Context) func(event interface{}) {
 			err := s.handleLoggedOut(ctx, e)
 			if err != nil {
 				s.logger.Error("failed to handle LoggedOut event", zap.Error(err))
+				return
+			}
+		case *events.OfflineSyncPreview:
+			err := s.handleOfflineSyncPreview(ctx, e)
+			if err != nil {
+				s.logger.Error("failed to handle OfflineSyncPreview event", zap.Error(err))
+				return
+			}
+		case *events.OfflineSyncCompleted:
+			err := s.handleOfflineSyncCompleted(ctx, e)
+			if err != nil {
+				s.logger.Error("failed to handle OfflineSyncCompleted event", zap.Error(err))
 				return
 			}
 		default:

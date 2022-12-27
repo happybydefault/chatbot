@@ -7,6 +7,9 @@ import (
 )
 
 func (s *Store) User(ctx context.Context, id string) (*data.User, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	user, ok := s.users[id]
 	if !ok {
 		return nil, data.ErrNotFound

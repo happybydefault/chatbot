@@ -2,115 +2,93 @@ package chatbot
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/PullRequestInc/go-gpt3"
-	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/happybydefault/chatbot/data"
 )
 
-func (s *Server) handleMessage(ctx context.Context, message *events.Message) error {
+func (s *Server) handleMessage(ctx context.Context, message *events.Message) {
 	s.logger.Info(
 		"Message event received",
 		zap.String("message", fmt.Sprintf("%#v", message)),
 	)
 
-	err := s.whatsmeow.MarkRead(
+	if message.Message.GetConversation() == "" {
+		s.logger.Debug("ignoring Message event with empty Conversation")
+		return
+	}
+
+	chatID := message.Info.Chat.ToNonAD().String()
+
+	_, err := s.store.Chat(ctx, chatID)
+	if err != nil {
+		if errors.Is(err, data.ErrNotFound) {
+			s.logger.Warn("chat does not exist in the store", zap.String("chat_id", chatID))
+		} else {
+			s.logger.Error("failed to get chat from the store", zap.Error(err))
+		}
+		return
+	}
+	s.logger.Debug("chat exists in the store", zap.String("chat_id", chatID))
+
+	err = s.store.AppendMessage(ctx, chatID, data.Message{
+		SenderID: message.Info.Sender.ToNonAD().String(),
+		Text:     message.Message.GetConversation(),
+	})
+	if err != nil {
+		s.logger.Error("failed to append user's message to the chat in the store", zap.Error(err))
+		return
+	}
+
+	err = s.whatsmeow.MarkRead(
 		[]types.MessageID{
 			message.Info.ID,
 		},
 		time.Now(),
-		message.Info.Chat,
-		message.Info.Sender,
+		message.Info.Chat.ToNonAD(),
+		message.Info.Sender.ToNonAD(),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to mark message as read: %w", err)
+		s.logger.Error("failed to mark message as read", zap.Error(err))
+		return
 	}
 
-	if message.Message.GetConversation() == "" {
-		s.logger.Debug("ignoring Message event with empty Conversation")
-		return nil
+	if s.state == StateSyncing {
+		s.logger.Debug("adding chat to the pending chats", zap.String("chat_id", chatID))
+		s.pendingChats[message.Info.Chat] = struct{}{}
+		return
 	}
 
-	_, err = s.store.User(ctx, message.Info.Sender.User)
-	if err != nil {
-		if err == data.ErrNotFound {
-			s.logger.Warn(
-				"user does not exist in the store",
-				zap.String("user_id", message.Info.Sender.User),
-			)
-			return nil
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+
+		err = s.handleChat(ctx, message.Info.Chat.String())
+		if err != nil {
+			s.logger.Error("failed to handle chat", zap.Error(err))
 		}
-		return fmt.Errorf("failed to get user from store: %w", err)
-	}
-	s.logger.Debug("user exists in the store")
-
-	err = s.whatsmeow.SendChatPresence(message.Info.Chat, types.ChatPresenceComposing, "")
-	if err != nil {
-		return fmt.Errorf("failed to send chat composing presence: %w", err)
-	}
-
-	timer := time.NewTimer(500 * time.Millisecond)
-	defer timer.Stop()
-
-	// TODO: Move prefix out of the function. Maybe use (Go) text templates.
-	// TODO: Maybe encode conversation between the person and the AI as JSON.
-	prefix := "The following is a conversation with an AI called Chatbot, the smartest of all beings." +
-		" The assistant is helpful, creative, clever, and very friendly." +
-		"\n\n Person: "
-
-	prompt := fmt.Sprintf(
-		"%s\n\n%q\n\n%s:",
-		prefix,
-		message.Message.GetConversation(),
-		"Chatbot:",
-	)
-
-	completionResponse, err := s.completion(ctx, prompt)
-	if err != nil {
-		return fmt.Errorf("failed to get completion response: %w", err)
-	}
-	if len(completionResponse.Choices) == 0 {
-		return fmt.Errorf("received empty slice of completion choices")
-	}
-
-	conversationResponse := completionResponse.Choices[0].Text
-	conversationResponse = strings.TrimSpace(conversationResponse)
-
-	response := &waProto.Message{
-		Conversation: proto.String(conversationResponse),
-	}
-
-	// Make sure there is a delay between receiving a message and sending a response,
-	// to avoid being tagged as a bot and getting banned.
-	<-timer.C
-
-	report, err := s.whatsmeow.SendMessage(ctx, message.Info.Chat, "", response)
-	if err != nil {
-		return fmt.Errorf("failed to send message: %w", err)
-	}
-	s.logger.Debug("message sent", zap.String("sent_message_id", report.ID))
-
-	return nil
+	}()
 }
 
 func newCompletionRequest(prompts []string) gpt3.CompletionRequest {
 	var (
 		maxTokens           = 512
 		temperature float32 = 0.0
+		stop                = []string{"'''"}
 	)
 
 	completionRequest := gpt3.CompletionRequest{
 		Prompt:      prompts,
 		MaxTokens:   &maxTokens,
 		Temperature: &temperature,
+		Stop:        stop,
 	}
 
 	return completionRequest

@@ -1,18 +1,25 @@
 package memory
 
-import "github.com/happybydefault/chatbot/data"
+import (
+	"sync"
+
+	"github.com/happybydefault/chatbot/data"
+)
 
 type Store struct {
+	mu    sync.RWMutex
+	chats map[string]*data.Chat
 	users map[string]*data.User
 }
 
-func NewStore(userIDs []string) *Store {
-	users := make(map[string]*data.User, len(userIDs))
-	for _, id := range userIDs {
-		users[id] = &data.User{ID: id}
+func NewStore(chatIDs []string) *Store {
+	chats := make(map[string]*data.Chat, len(chatIDs))
+	for _, id := range chatIDs {
+		chats[id] = &data.Chat{ID: id}
 	}
 
 	return &Store{
-		users: users,
+		chats: chats,
+		users: make(map[string]*data.User),
 	}
 }

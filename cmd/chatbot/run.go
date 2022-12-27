@@ -11,7 +11,7 @@ import (
 )
 
 func run(ctx context.Context, logger *zap.Logger, cfg config) error {
-	store := memory.NewStore(cfg.userIDs)
+	store := memory.NewStore(cfg.chatIDs)
 
 	chatbotConfig := chatbot.Config{
 		Logger:             logger,

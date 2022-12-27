@@ -8,7 +8,7 @@ import (
 
 type config struct {
 	development        bool
-	userIDs            []string
+	chatIDs            []string
 	postgresConnString string
 	openAIAPIKey       string
 }
@@ -28,11 +28,11 @@ func newConfig(args []string) (config, error) {
 		"Enable development mode",
 	)
 	flagSet.StringSliceVarP(
-		&cfg.userIDs,
-		"users",
-		"u",
+		&cfg.chatIDs,
+		"chats",
+		"c",
 		nil,
-		"User IDs to add to the store",
+		"Chat IDs to add to the store",
 	)
 	flagSet.StringVarP(
 		&cfg.postgresConnString,
