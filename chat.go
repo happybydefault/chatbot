@@ -2,6 +2,7 @@ package chatbot
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -15,27 +16,45 @@ import (
 	"github.com/happybydefault/chatbot/data"
 )
 
-func (s *Server) handleChat(ctx context.Context, id string) error {
-	chat, err := s.store.Chat(ctx, id)
-	if err != nil {
-		if err == data.ErrNotFound {
-			s.logger.Warn("chat does not exist in the store", zap.String("chat_id", id))
-			return nil
-		}
-		return fmt.Errorf("failed to get chat from store: %w", err)
-	}
-	s.logger.Debug("chat exists in the store", zap.String("chat_id", id))
+func (c *Client) handleChat(chatID string) error {
+	c.logger.Info("handling chat", zap.String("chat_id", chatID))
 
-	if len(chat.Messages) == 0 {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var (
+		chat     data.Chat
+		messages []data.Message
+	)
+	err := c.execTx(ctx, sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  true,
+	}, func(tx data.Tx) error {
+		var err error
+
+		chat, err = c.store.Chat(ctx, tx, chatID)
+		if err != nil {
+			return fmt.Errorf("failed to get chat from data store: %w", err)
+		}
+
+		messages, err = c.store.Messages(ctx, tx, chatID)
+		if err != nil {
+			return fmt.Errorf("failed to get messages from data store: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to execute data store transaction: %w", err)
+	}
+
+	if len(messages) == 0 {
 		return errors.New("chat has no messages")
 	}
 
-	jid, err := types.ParseJID(chat.ID)
-	if err != nil {
-		return fmt.Errorf("failed to parse JID: %w", err)
-	}
+	jid := types.NewJID(chatID, types.DefaultUserServer)
 
-	err = s.whatsmeow.SendChatPresence(jid, types.ChatPresenceComposing, "")
+	err = c.whatsmeowClient.SendChatPresence(jid, types.ChatPresenceComposing, "")
 	if err != nil {
 		return fmt.Errorf("failed to send chat composing presence: %w", err)
 	}
@@ -48,24 +67,31 @@ func (s *Server) handleChat(ctx context.Context, id string) error {
 	prefix := fmt.Sprintf(
 		"The following is a conversation with an AI called Chatbot, the smartest of all beings."+
 			" The assistant is helpful, creative, clever, and very friendly. The Chatbot's ID is %q.",
-		"15024830330@s.whatsapp.net",
+		"15024830330",
 	)
 
-	messages := make([]string, 0, len(chat.Messages))
-	for _, message := range chat.Messages {
-		messages = append(messages, fmt.Sprintf("%s:\n'''\n%s\n'''", message.SenderID, message.Text))
+	conversations := make([]string, 0, len(messages))
+	for _, message := range messages {
+		conversations = append(
+			conversations,
+			fmt.Sprintf(
+				"%s:\n'''\n%s\n'''",
+				message.SenderID,
+				message.Conversation,
+			),
+		)
 	}
 
 	prompt := fmt.Sprintf(
 		"%s\n\n%s\n\n%s",
 		prefix,
-		strings.Join(messages, "\n\n"),
-		"15024830330@s.whatsapp.net:\n'''",
+		strings.Join(conversations, "\n\n"),
+		"15024830330:\n'''",
 	)
 
 	fmt.Printf("prompt:\n\n%s\n", prompt)
 
-	completionResponse, err := s.completion(ctx, prompt)
+	completionResponse, err := c.completion(ctx, prompt)
 	if err != nil {
 		return fmt.Errorf("failed to get completion response: %w", err)
 	}
@@ -80,23 +106,34 @@ func (s *Server) handleChat(ctx context.Context, id string) error {
 		Conversation: proto.String(conversationResponse),
 	}
 
-	err = s.store.AppendMessage(ctx, id, data.Message{
-		SenderID: "15024830330@s.whatsapp.net",
-		Text:     conversationResponse,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to append chatbot's message to chat in store: %w", err)
-	}
-
 	// Make sure there is a delay between receiving a message and sending a response,
 	// to avoid being tagged as a bot and getting banned.
 	<-timer.C
 
-	report, err := s.whatsmeow.SendMessage(ctx, jid, "", response)
+	report, err := c.whatsmeowClient.SendMessage(ctx, jid, "", response)
 	if err != nil {
 		return fmt.Errorf("failed to send message: %w", err)
 	}
-	s.logger.Debug("message sent", zap.String("sent_message_id", report.ID))
+	c.logger.Debug("sent message", zap.String("sent_message_id", report.ID))
+
+	err = c.execTx(ctx, sql.TxOptions{
+		Isolation: sql.LevelSerializable,
+		ReadOnly:  false,
+	}, func(tx data.Tx) error {
+		err := c.store.CreateMessage(ctx, tx, data.Message{
+			ID:           report.ID,
+			Conversation: conversationResponse,
+			ChatID:       chat.ID,
+			SenderID:     "15024830330",
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create message from chatbot in data store: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to execute data store transaction: %w", err)
+	}
 
 	return nil
 }

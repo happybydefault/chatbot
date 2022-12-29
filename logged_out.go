@@ -1,23 +1,16 @@
 package chatbot
 
 import (
-	"context"
 	"fmt"
 
 	"go.mau.fi/whatsmeow/types/events"
-	"go.uber.org/zap"
 )
 
 // TODO: Revisit logic.
-func (s *Server) handleLoggedOut(ctx context.Context, loggedOut *events.LoggedOut) error {
-	s.logger.Info(
-		"LoggedOut event received",
-		zap.String("qr_codes", fmt.Sprintf("%#v", loggedOut)),
-	)
-
+func (c *Client) handleLoggedOut(loggedOut *events.LoggedOut) error {
 	if loggedOut.OnConnect {
 		if loggedOut.Reason.IsLoggedOut() {
-			err := s.whatsmeow.Store.Delete()
+			err := c.whatsmeowClient.Store.Delete()
 			if err != nil {
 				return fmt.Errorf("failed to delete store: %w", err)
 			}

@@ -1,6 +1,8 @@
 package data
 
 type Message struct {
-	SenderID string `json:"sender_id"`
-	Text     string `json:"text"`
+	ID           string
+	Conversation string
+	ChatID       string
+	SenderID     string
 }

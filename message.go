@@ -2,11 +2,11 @@ package chatbot
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/PullRequestInc/go-gpt3"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	"go.uber.org/zap"
@@ -14,40 +14,11 @@ import (
 	"github.com/happybydefault/chatbot/data"
 )
 
-func (s *Server) handleMessage(ctx context.Context, message *events.Message) {
-	s.logger.Info(
-		"Message event received",
-		zap.String("message", fmt.Sprintf("%#v", message)),
-	)
+func (c *Client) handleMessage(message *events.Message) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	if message.Message.GetConversation() == "" {
-		s.logger.Debug("ignoring Message event with empty Conversation")
-		return
-	}
-
-	chatID := message.Info.Chat.ToNonAD().String()
-
-	_, err := s.store.Chat(ctx, chatID)
-	if err != nil {
-		if errors.Is(err, data.ErrNotFound) {
-			s.logger.Warn("chat does not exist in the store", zap.String("chat_id", chatID))
-		} else {
-			s.logger.Error("failed to get chat from the store", zap.Error(err))
-		}
-		return
-	}
-	s.logger.Debug("chat exists in the store", zap.String("chat_id", chatID))
-
-	err = s.store.AppendMessage(ctx, chatID, data.Message{
-		SenderID: message.Info.Sender.ToNonAD().String(),
-		Text:     message.Message.GetConversation(),
-	})
-	if err != nil {
-		s.logger.Error("failed to append user's message to the chat in the store", zap.Error(err))
-		return
-	}
-
-	err = s.whatsmeow.MarkRead(
+	err := c.whatsmeowClient.MarkRead(
 		[]types.MessageID{
 			message.Info.ID,
 		},
@@ -56,40 +27,68 @@ func (s *Server) handleMessage(ctx context.Context, message *events.Message) {
 		message.Info.Sender.ToNonAD(),
 	)
 	if err != nil {
-		s.logger.Error("failed to mark message as read", zap.Error(err))
-		return
+		return fmt.Errorf("failed to mark message as read: %w", err)
 	}
 
-	if s.state == StateSyncing {
-		s.logger.Debug("adding chat to the pending chats", zap.String("chat_id", chatID))
-		s.pendingChats[message.Info.Chat] = struct{}{}
-		return
+	if message.Message.GetConversation() == "" {
+		c.logger.Debug("ignoring Message event with empty Conversation")
+		return nil
 	}
 
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
+	chatID := message.Info.Chat.User
 
-		err = s.handleChat(ctx, message.Info.Chat.String())
+	err = c.execTx(ctx, sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  true,
+	}, func(tx data.Tx) error {
+		_, err := c.store.Chat(ctx, tx, chatID)
 		if err != nil {
-			s.logger.Error("failed to handle chat", zap.Error(err))
+			return fmt.Errorf("failed to get chat from data store: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, data.ErrNotFound) {
+			c.logger.Debug("ignoring Message event from unknown chat")
+			return nil
+		}
+		return fmt.Errorf("failed to execute data store transaction: %w", err)
+	}
+
+	err = c.execTx(ctx, sql.TxOptions{
+		Isolation: sql.LevelSerializable,
+		ReadOnly:  false,
+	}, func(tx data.Tx) error {
+		err := c.store.CreateMessage(ctx, tx, data.Message{
+			ID:           message.Info.ID,
+			Conversation: message.Message.GetConversation(),
+			ChatID:       chatID,
+			SenderID:     message.Info.Sender.User,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create message from user in data store: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to execute data store transaction: %w", err)
+	}
+
+	if c.state == StateSyncing {
+		c.logger.Debug("adding chat to the slice of pending chats", zap.String("chat_id", chatID))
+		c.pendingChats[chatID] = struct{}{}
+		return nil
+	}
+
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+
+		err = c.handleChat(chatID)
+		if err != nil {
+			c.logger.Error("failed to handle chat", zap.Error(err))
 		}
 	}()
-}
 
-func newCompletionRequest(prompts []string) gpt3.CompletionRequest {
-	var (
-		maxTokens           = 512
-		temperature float32 = 0.0
-		stop                = []string{"'''"}
-	)
-
-	completionRequest := gpt3.CompletionRequest{
-		Prompt:      prompts,
-		MaxTokens:   &maxTokens,
-		Temperature: &temperature,
-		Stop:        stop,
-	}
-
-	return completionRequest
+	return nil
 }

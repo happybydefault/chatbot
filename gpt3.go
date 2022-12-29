@@ -11,14 +11,14 @@ import (
 	"go.uber.org/zap"
 )
 
-func (s *Server) completion(ctx context.Context, prompt string) (*gpt3.CompletionResponse, error) {
+func (c *Client) completion(ctx context.Context, prompt string) (*gpt3.CompletionResponse, error) {
 	var completionResponse *gpt3.CompletionResponse
 
 	fn := func() error {
 		completionRequest := newCompletionRequest([]string{prompt})
 
 		var err error
-		completionResponse, err = s.gpt3.Completion(ctx, completionRequest)
+		completionResponse, err = c.gpt3Client.Completion(ctx, completionRequest)
 		if err != nil {
 			var apiErr *gpt3.APIError
 			if errors.As(err, &apiErr) {
@@ -26,7 +26,7 @@ func (s *Server) completion(ctx context.Context, prompt string) (*gpt3.Completio
 					return backoff.Permanent(err)
 				}
 			}
-			s.logger.Debug("failed attempt to get completion response", zap.Error(err))
+			c.logger.Debug("failed attempt to get completion response", zap.Error(err))
 			return err
 		}
 
@@ -34,7 +34,7 @@ func (s *Server) completion(ctx context.Context, prompt string) (*gpt3.Completio
 			return backoff.Permanent(errors.New("received empty slice of completion choices"))
 		}
 
-		s.logger.Debug(
+		c.logger.Debug(
 			"received completion response",
 			zap.String("completion_response", fmt.Sprintf("%#v", completionResponse)),
 		)
@@ -48,4 +48,21 @@ func (s *Server) completion(ctx context.Context, prompt string) (*gpt3.Completio
 	)
 
 	return completionResponse, err
+}
+
+func newCompletionRequest(prompts []string) gpt3.CompletionRequest {
+	var (
+		maxTokens           = 512
+		temperature float32 = 0.0
+		stop                = []string{"'''"}
+	)
+
+	completionRequest := gpt3.CompletionRequest{
+		Prompt:      prompts,
+		MaxTokens:   &maxTokens,
+		Temperature: &temperature,
+		Stop:        stop,
+	}
+
+	return completionRequest
 }

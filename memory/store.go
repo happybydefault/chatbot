@@ -9,7 +9,6 @@ import (
 type Store struct {
 	mu    sync.RWMutex
 	chats map[string]*data.Chat
-	users map[string]*data.User
 }
 
 func NewStore(chatIDs []string) *Store {
@@ -20,6 +19,5 @@ func NewStore(chatIDs []string) *Store {
 
 	return &Store{
 		chats: chats,
-		users: make(map[string]*data.User),
 	}
 }

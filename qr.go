@@ -1,21 +1,14 @@
 package chatbot
 
 import (
-	"context"
 	"fmt"
 	"os"
 
 	"github.com/mdp/qrterminal"
 	"go.mau.fi/whatsmeow/types/events"
-	"go.uber.org/zap"
 )
 
-func (s *Server) handleQR(ctx context.Context, qr *events.QR) error {
-	s.logger.Info(
-		"QR event received",
-		zap.String("qr_codes", fmt.Sprintf("%q", qr.Codes)),
-	)
-
+func (c *Client) handleQR(qr *events.QR) error {
 	if len(qr.Codes) == 0 {
 		return fmt.Errorf("received empty slice of QR codes")
 	}

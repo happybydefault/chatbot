@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -20,9 +21,6 @@ func main() {
 		os.Exit(statusCode)
 	}()
 
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-
 	var logger *zap.Logger
 	defer logger.Sync()
 
@@ -40,8 +38,20 @@ func main() {
 		return
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	stopChan := make(chan os.Signal, 1)
+	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-stopChan
+		signal.Stop(stopChan)
+		logger.Info("received stopping signal", zap.String("signal", sig.String()))
+		cancel()
+	}()
+
 	err = run(ctx, logger, cfg)
-	if err != nil {
+	if err != nil && !errors.Is(err, context.Canceled) {
 		logger.Error("failed to run", zap.Error(err))
 		statusCode = 1
 		return

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/pflag"
@@ -8,14 +9,18 @@ import (
 
 type config struct {
 	development        bool
-	chatIDs            []string
 	postgresConnString string
 	openAIAPIKey       string
 }
 
 func newConfig(args []string) (config, error) {
+	openAIAPIKey := os.Getenv("OPENAI_API_KEY")
+	if openAIAPIKey == "" {
+		return config{}, fmt.Errorf("environment variable OPENAI_API_KEY must be set")
+	}
+
 	cfg := config{
-		openAIAPIKey: os.Getenv("OPENAI_API_KEY"),
+		openAIAPIKey: openAIAPIKey,
 	}
 
 	flagSet := pflag.NewFlagSet(programName, pflag.ContinueOnError)
@@ -26,13 +31,6 @@ func newConfig(args []string) (config, error) {
 		"d",
 		false,
 		"Enable development mode",
-	)
-	flagSet.StringSliceVarP(
-		&cfg.chatIDs,
-		"chats",
-		"c",
-		nil,
-		"Chat IDs to add to the store",
 	)
 	flagSet.StringVarP(
 		&cfg.postgresConnString,

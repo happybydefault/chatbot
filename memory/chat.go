@@ -2,11 +2,12 @@ package memory
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/happybydefault/chatbot/data"
 )
 
-func (s *Store) Chat(ctx context.Context, id string) (*data.Chat, error) {
+func (s *Store) Chat(ctx context.Context, tx *sql.Tx, id string) (*data.Chat, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
