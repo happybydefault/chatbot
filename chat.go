@@ -89,8 +89,6 @@ func (c *Client) handleChat(chatID string) error {
 		c.whatsmeowClient.Store.ID.User,
 	)
 
-	fmt.Printf("prompt:\n\n%s\n", prompt)
-
 	completionResponse, err := c.completion(ctx, prompt)
 	if err != nil {
 		return fmt.Errorf("failed to get completion response: %w", err)
