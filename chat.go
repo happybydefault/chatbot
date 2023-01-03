@@ -19,7 +19,7 @@ import (
 func (c *Client) handleChat(chatID string) error {
 	c.logger.Info("handling chat", zap.String("chat_id", chatID))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	var (
