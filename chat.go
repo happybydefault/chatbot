@@ -67,7 +67,7 @@ func (c *Client) handleChat(chatID string) error {
 	prefix := fmt.Sprintf(
 		"The following is a conversation with an AI called Chatbot, the smartest of all beings."+
 			" The assistant is helpful, creative, clever, and very friendly. The Chatbot's ID is %q.",
-		"15024830330",
+		c.whatsmeowClient.Store.ID.User,
 	)
 
 	conversations := make([]string, 0, len(messages))
@@ -83,10 +83,10 @@ func (c *Client) handleChat(chatID string) error {
 	}
 
 	prompt := fmt.Sprintf(
-		"%s\n\n%s\n\n%s",
+		"%s\n\n%s\n\n%s:\n'''",
 		prefix,
 		strings.Join(conversations, "\n\n"),
-		"15024830330:\n'''",
+		c.whatsmeowClient.Store.ID.User,
 	)
 
 	fmt.Printf("prompt:\n\n%s\n", prompt)
@@ -124,7 +124,7 @@ func (c *Client) handleChat(chatID string) error {
 			ID:           report.ID,
 			Conversation: conversationResponse,
 			ChatID:       chat.ID,
-			SenderID:     "15024830330",
+			SenderID:     c.whatsmeowClient.Store.ID.User,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create message from chatbot in data store: %w", err)
