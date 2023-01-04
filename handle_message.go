@@ -75,7 +75,7 @@ func (c *Client) handleMessage(message *events.Message) error {
 		return fmt.Errorf("failed to execute data store transaction: %w", err)
 	}
 
-	if c.state == StateSyncing {
+	if c.status == StatusSyncing {
 		c.logger.Debug("adding chat to the slice of pending chats", zap.String("chat_id", chatID))
 		c.pendingChats[chatID] = struct{}{}
 		return nil

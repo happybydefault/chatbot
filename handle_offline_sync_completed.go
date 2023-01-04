@@ -23,7 +23,7 @@ func (c *Client) handleOfflineSyncCompleted() error {
 	}
 
 	wg.Wait()
-	c.state = StateReady
+	c.status = StatusReady
 
 	return nil
 }
