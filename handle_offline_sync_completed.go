@@ -6,7 +6,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (c *Client) handleOfflineSyncCompleted() error {
+func (c *Client) handleOfflineSyncCompletedEvent() error {
 	var wg sync.WaitGroup
 	wg.Add(len(c.pendingChats))
 

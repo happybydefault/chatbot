@@ -6,7 +6,7 @@ import (
 	"go.mau.fi/whatsmeow/types"
 )
 
-func (c *Client) handleConnected() error {
+func (c *Client) handleConnectedEvent() error {
 	c.status = StatusSyncing
 
 	err := c.whatsmeowClient.SendPresence(types.PresenceAvailable)

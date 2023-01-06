@@ -8,7 +8,7 @@ import (
 	"go.mau.fi/whatsmeow/types/events"
 )
 
-func (c *Client) handleQR(qr *events.QR) error {
+func (c *Client) handleQREvent(qr *events.QR) error {
 	if len(qr.Codes) == 0 {
 		return fmt.Errorf("received empty slice of QR codes")
 	}

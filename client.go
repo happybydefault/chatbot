@@ -115,15 +115,15 @@ func (c *Client) eventHandler(event interface{}) {
 
 	switch e := event.(type) {
 	case *events.Connected:
-		err = c.handleConnected()
+		err = c.handleConnectedEvent()
 	case *events.QR:
-		err = c.handleQR(e)
+		err = c.handleQREvent(e)
 	case *events.Message:
-		err = c.handleMessage(e)
+		err = c.handleMessageEvent(e)
 	case *events.OfflineSyncCompleted:
-		err = c.handleOfflineSyncCompleted()
+		err = c.handleOfflineSyncCompletedEvent()
 	case *events.LoggedOut:
-		err = c.handleLoggedOut(e)
+		err = c.handleLoggedOutEvent(e)
 	default:
 		return
 	}

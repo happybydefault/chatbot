@@ -7,7 +7,7 @@ import (
 )
 
 // TODO: Revisit logic.
-func (c *Client) handleLoggedOut(loggedOut *events.LoggedOut) error {
+func (c *Client) handleLoggedOutEvent(loggedOut *events.LoggedOut) error {
 	if loggedOut.OnConnect {
 		if loggedOut.Reason.IsLoggedOut() {
 			err := c.whatsmeowClient.Store.Delete()
