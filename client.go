@@ -21,7 +21,7 @@ type Client struct {
 	whatsmeowClient *whatsmeow.Client
 	gpt3Client      gpt3.Client
 
-	status       State
+	status       Status
 	pendingChats map[string]struct{}
 
 	stopChan chan struct{}

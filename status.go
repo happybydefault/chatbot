@@ -1,8 +1,8 @@
 package chatbot
 
-type State int
+type Status int
 
 const (
-	StatusSyncing State = iota
-	StatusReady   State = iota
+	StatusSyncing Status = iota
+	StatusReady   Status = iota
 )
