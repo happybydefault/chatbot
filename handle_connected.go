@@ -7,7 +7,7 @@ import (
 )
 
 func (c *Client) handleConnectedEvent() error {
-	c.status = StatusSyncing
+	c.state = StateSyncing
 
 	err := c.whatsmeowClient.SendPresence(types.PresenceAvailable)
 	if err != nil {
