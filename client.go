@@ -3,6 +3,7 @@ package chatbot
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/PullRequestInc/go-gpt3"
 	"go.mau.fi/whatsmeow"
@@ -22,10 +23,11 @@ type Client struct {
 	gpt3Client      gpt3.Client
 
 	state        State
-	pendingChats map[string]struct{}
+	syncingSince time.Time
 
-	stopChan chan struct{}
-	wg       sync.WaitGroup
+	stopChan   chan struct{}
+	wg         sync.WaitGroup
+	messagesWG sync.WaitGroup
 }
 
 func NewClient(cfg Config) (*Client, error) {
@@ -60,7 +62,6 @@ func NewClient(cfg Config) (*Client, error) {
 		store:           cfg.Store,
 		whatsmeowClient: whatsmeowClient,
 		gpt3Client:      gpt3Client,
-		pendingChats:    make(map[string]struct{}),
 		stopChan:        make(chan struct{}),
 	}, nil
 }
@@ -85,9 +86,13 @@ func (c *Client) Stop() error {
 
 	c.whatsmeowClient.RemoveEventHandlers()
 
-	c.logger.Info("waiting for all event handlers and chats handlers to finish")
+	c.logger.Debug("waiting for all message event handlers to finish")
+	c.messagesWG.Wait()
+	c.logger.Debug("all message event handlers finished")
+
+	c.logger.Debug("waiting for all other event handlers to finish")
 	c.wg.Wait()
-	c.logger.Info("all event handlers and chats handlers finished")
+	c.logger.Debug("all other event handlers finished")
 
 	err := c.whatsmeowClient.SendPresence(types.PresenceUnavailable)
 	if err != nil {
@@ -114,12 +119,12 @@ func (c *Client) eventHandler(event interface{}) {
 	var err error
 
 	switch e := event.(type) {
-	case *events.Connected:
-		err = c.handleConnectedEvent()
 	case *events.QR:
 		err = c.handleQREvent(e)
+	case *events.Connected:
+		err = c.handleConnectedEvent()
 	case *events.Message:
-		err = c.handleMessageEvent(e)
+		c.handleMessageEvent(e)
 	case *events.OfflineSyncCompleted:
 		err = c.handleOfflineSyncCompletedEvent()
 	case *events.LoggedOut:

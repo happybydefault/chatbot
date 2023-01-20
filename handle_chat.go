@@ -120,9 +120,10 @@ func (c *Client) handleChat(chatID string) error {
 	}, func(tx data.Tx) error {
 		err := c.store.CreateMessage(ctx, tx, data.Message{
 			ID:           report.ID,
-			Conversation: conversationResponse,
 			ChatID:       chat.ID,
 			SenderID:     c.whatsmeowClient.Store.ID.User,
+			Conversation: conversationResponse,
+			CreatedAt:    time.Now(),
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create message from chatbot in data store: %w", err)
