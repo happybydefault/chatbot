@@ -10,6 +10,18 @@ import (
 	"github.com/happybydefault/chatbot/data"
 )
 
+func (s *Store) CreateMessage(ctx context.Context, tx data.Tx, message data.Message) error {
+	query := `INSERT INTO messages (chat_id, sender_id, message_id, conversation, created_at)
+			  VALUES ($1, $2, $3, $4, $5)`
+
+	_, err := tx.Exec(ctx, query, message.ChatID, message.SenderID, message.ID, message.Conversation, message.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	return nil
+}
+
 func (s *Store) Messages(ctx context.Context, tx data.Tx, chatID string) ([]data.Message, error) {
 	query := "SELECT chat_id, sender_id, message_id, conversation, created_at FROM messages WHERE chat_id = $1"
 
@@ -74,16 +86,4 @@ func (s *Store) scanMessage(row data.Row) (data.Message, error) {
 	}
 
 	return message, nil
-}
-
-func (s *Store) CreateMessage(ctx context.Context, tx data.Tx, message data.Message) error {
-	query := `INSERT INTO messages (chat_id, sender_id, message_id, conversation, created_at)
-			  VALUES ($1, $2, $3, $4, $5)`
-
-	_, err := tx.Exec(ctx, query, message.ChatID, message.SenderID, message.ID, message.Conversation, message.CreatedAt)
-	if err != nil {
-		return fmt.Errorf("failed to execute query: %w", err)
-	}
-
-	return nil
 }
