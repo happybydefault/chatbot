@@ -7,5 +7,6 @@ type Message struct {
 	ChatID       string
 	SenderID     string
 	Conversation string
+	Timestamp    time.Time
 	CreatedAt    time.Time
 }

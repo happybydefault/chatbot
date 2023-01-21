@@ -78,8 +78,8 @@ func (c *Client) handleMessage(message *events.Message, state State) error {
 			ChatID:       chatID,
 			SenderID:     message.Info.Sender.User,
 			Conversation: message.Message.GetConversation(),
-			//CreatedAt:    message.Info.Timestamp,
-			CreatedAt: time.Now(),
+			Timestamp:    message.Info.Timestamp,
+			CreatedAt:    time.Now(),
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create message from user in data store: %w", err)

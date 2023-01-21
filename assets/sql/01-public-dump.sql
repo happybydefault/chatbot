@@ -40,7 +40,8 @@ CREATE TABLE public.messages (
     sender_id text NOT NULL,
     message_id text NOT NULL,
     conversation text DEFAULT ''::text NOT NULL,
-    created_at timestamp with time zone DEFAULT (now() AT TIME ZONE 'UTC'::text) NOT NULL
+    "timestamp" timestamp with time zone DEFAULT (now() AT TIME ZONE 'UTC'::text) NOT NULL,
+    created_at timestamp with time zone DEFAULT (now() AT TIME ZONE 'UTC'::text) NOT NULL                         
 );
 
 
@@ -58,7 +59,7 @@ COPY public.chats (chat_id) FROM stdin;
 -- Data for Name: messages; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.messages (chat_id, sender_id, message_id, conversation, created_at) FROM stdin;
+COPY public.messages (chat_id, sender_id, message_id, conversation, "timestamp", created_at) FROM stdin;
 \.
 
 
@@ -96,4 +97,3 @@ ALTER TABLE ONLY public.messages
 --
 -- PostgreSQL database dump complete
 --
-
