@@ -1,11 +1,8 @@
 services:
   postgres:
     image: postgres:15
+    env_file: .env
     volumes:
       - ./assets/sql/:/docker-entrypoint-initdb.d/
     ports:
       - 5432:5432
-    environment:
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: password
-        POSTGRES_DB: postgres
