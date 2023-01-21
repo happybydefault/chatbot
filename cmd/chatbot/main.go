@@ -28,7 +28,7 @@ func main() {
 		return
 	}
 
-	logger, err := newLogger(cfg.development)
+	logger, err := newLogger(cfg.isDevelopment)
 	if err != nil {
 		log.Printf("failed to construct logger: %s", err)
 		statusCode = 1

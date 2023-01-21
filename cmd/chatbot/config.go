@@ -8,7 +8,7 @@ import (
 )
 
 type config struct {
-	development        bool
+	isDevelopment      bool
 	postgresConnString string
 	openAIAPIKey       string
 }
@@ -26,7 +26,7 @@ func newConfig(args []string) (config, error) {
 	flagSet := pflag.NewFlagSet(programName, pflag.ContinueOnError)
 
 	flagSet.BoolVarP(
-		&cfg.development,
+		&cfg.isDevelopment,
 		"development",
 		"d",
 		false,
