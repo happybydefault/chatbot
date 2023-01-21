@@ -21,9 +21,6 @@ func main() {
 		os.Exit(statusCode)
 	}()
 
-	var logger *zap.Logger
-	defer logger.Sync()
-
 	cfg, err := newConfig(os.Args[1:])
 	if err != nil {
 		log.Printf("failed to construct config: %s", err)
@@ -31,12 +28,13 @@ func main() {
 		return
 	}
 
-	logger, err = newLogger(cfg.development)
+	logger, err := newLogger(cfg.development)
 	if err != nil {
 		log.Printf("failed to construct logger: %s", err)
 		statusCode = 1
 		return
 	}
+	defer logger.Sync()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
