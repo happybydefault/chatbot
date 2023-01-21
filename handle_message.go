@@ -52,19 +52,19 @@ func (c *Client) handleMessage(message *events.Message, state State) error {
 		return fmt.Errorf("failed to execute data store transaction: %w", err)
 	}
 
-	err = c.whatsmeowClient.MarkRead(
-		[]types.MessageID{
-			message.Info.ID,
-		},
-		time.Now(),
-		message.Info.Chat.ToNonAD(),
-		message.Info.Sender.ToNonAD(),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to mark message as read: %w", err)
-	}
-
 	if message.Message.GetConversation() == "" {
+		err = c.whatsmeowClient.MarkRead(
+			[]types.MessageID{
+				message.Info.ID,
+			},
+			time.Now(),
+			message.Info.Chat.ToNonAD(),
+			message.Info.Sender.ToNonAD(),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to mark message as read: %w", err)
+		}
+
 		c.logger.Debug("ignoring Message event with empty Conversation")
 		return nil
 	}
@@ -89,6 +89,18 @@ func (c *Client) handleMessage(message *events.Message, state State) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to execute data store transaction: %w", err)
+	}
+
+	err = c.whatsmeowClient.MarkRead(
+		[]types.MessageID{
+			message.Info.ID,
+		},
+		time.Now(),
+		message.Info.Chat.ToNonAD(),
+		message.Info.Sender.ToNonAD(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to mark message as read: %w", err)
 	}
 
 	if state == StateSyncing {
