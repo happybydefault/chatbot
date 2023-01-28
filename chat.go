@@ -88,7 +88,7 @@ func (c *Chat) handleMessage(msg message) error {
 	}
 
 	if msg.Message.Message.GetConversation() == "" {
-		logger.Debug("ignoring message with empty conversation")
+		logger.Debug("ignored message with empty conversation")
 		return nil
 	}
 
