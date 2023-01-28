@@ -3,7 +3,6 @@ package chatbot
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/PullRequestInc/go-gpt3"
 	"go.mau.fi/whatsmeow"
@@ -22,12 +21,13 @@ type Client struct {
 	whatsmeowClient *whatsmeow.Client
 	gpt3Client      gpt3.Client
 
-	state        State
-	syncingSince time.Time
+	state State
 
-	stopChan   chan struct{}
-	wg         sync.WaitGroup
-	messagesWG sync.WaitGroup
+	stopChan chan struct{}
+	wg       sync.WaitGroup
+
+	mu    sync.Mutex
+	chats map[string]*Chat
 }
 
 func NewClient(cfg Config) (*Client, error) {
@@ -63,6 +63,7 @@ func NewClient(cfg Config) (*Client, error) {
 		whatsmeowClient: whatsmeowClient,
 		gpt3Client:      gpt3Client,
 		stopChan:        make(chan struct{}),
+		chats:           make(map[string]*Chat),
 	}, nil
 }
 
@@ -86,13 +87,15 @@ func (c *Client) Stop() error {
 
 	c.whatsmeowClient.RemoveEventHandlers()
 
-	c.logger.Debug("waiting for all message event handlers to finish")
-	c.messagesWG.Wait()
-	c.logger.Debug("all message event handlers finished")
-
-	c.logger.Debug("waiting for all other event handlers to finish")
+	c.logger.Debug("waiting for main event handlers to finish")
 	c.wg.Wait()
-	c.logger.Debug("all other event handlers finished")
+	c.logger.Debug("all main event handlers finished")
+
+	c.mu.Lock()
+	for _, chat := range c.chats {
+		chat.close()
+	}
+	c.mu.Unlock()
 
 	err := c.whatsmeowClient.SendPresence(types.PresenceUnavailable)
 	if err != nil {
