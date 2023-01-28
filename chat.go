@@ -73,7 +73,16 @@ func (c *Chat) handleMessages() {
 func (c *Chat) handleMessage(msg message) error {
 	logger := c.logger.With(zap.String("message_id", msg.Info.ID))
 
-	err := c.markAsRead(msg.Message)
+	isAllowed, err := c.isAllowed()
+	if err != nil {
+		return fmt.Errorf("failed to check if chat is allowed: %w", err)
+	}
+	if !isAllowed {
+		logger.Debug("skipped message because chat is not allowed")
+		return nil
+	}
+
+	err = c.markAsRead(msg.Message)
 	if err != nil {
 		return fmt.Errorf("failed to mark message as read: %w", err)
 	}
@@ -112,6 +121,30 @@ func (c *Chat) handleMessage(msg message) error {
 	}
 
 	return nil
+}
+
+func (c *Chat) isAllowed() (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := c.client.execTx(ctx, sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  true,
+	}, func(tx data.Tx) error {
+		_, err := c.client.store.Chat(ctx, tx, c.id)
+		if err != nil {
+			return fmt.Errorf("failed to get chat from data store: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, data.ErrNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to execute data store transaction: %w", err)
+	}
+
+	return true, nil
 }
 
 func (c *Chat) markAsRead(msg *events.Message) error {
