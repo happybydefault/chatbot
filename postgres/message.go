@@ -34,7 +34,8 @@ func (s *Store) CreateMessage(ctx context.Context, tx data.Tx, message data.Mess
 func (s *Store) Messages(ctx context.Context, tx data.Tx, chatID string) ([]data.Message, error) {
 	query := `SELECT chat_id, sender_id, message_id, conversation, "timestamp", created_at
 			  FROM messages
-			  WHERE chat_id = $1`
+			  WHERE chat_id = $1
+			  ORDER BY "timestamp"`
 
 	rows, err := tx.Query(ctx, query, chatID)
 	if err != nil {
@@ -63,7 +64,8 @@ func (s *Store) Messages(ctx context.Context, tx data.Tx, chatID string) ([]data
 func (s *Store) AllMessagesSince(ctx context.Context, tx data.Tx, t time.Time) ([]data.Message, error) {
 	query := `SELECT chat_id, sender_id, message_id, conversation, "timestamp", created_at
 			  FROM messages
-			  WHERE created_at >= $1`
+			  WHERE created_at >= $1
+			  ORDER BY "timestamp"`
 
 	rows, err := tx.Query(ctx, query, t)
 	if err != nil {
