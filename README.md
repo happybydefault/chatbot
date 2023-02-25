@@ -6,22 +6,22 @@
 
 1. Create an `.env` file with the following environment variables:
 
-    ```text
-    POSTGRES_USER="user"
-    POSTGRES_PASSWORD="password"
-    POSTGRES_DB="db"
-    
-    OPENAI_API_KEY="key"
-    ```
+   ```text
+   POSTGRES_USER="user"
+   POSTGRES_PASSWORD="password"
+   POSTGRES_DB="db"
+   
+   OPENAI_API_KEY="key"
+   ```
 
-2. Start Postgres service:
+2. Start services:
 
-    ```sh
-    docker compose up -d
-    ```
+   ```sh
+   docker compose up --detach
+   ```
 
-3. Run the chatbot:
+3. Link device to WhatsApp using the QR code that was printed in the logs:
 
-    ```sh
-    go run ./cmd/chatbot -d --postgres="postgres://user:password@hostname:port/db"
-    ```
+   ```sh
+   docker compose logs --follow chatbot
+   ```

@@ -6,3 +6,17 @@ services:
       - ./assets/sql/:/docker-entrypoint-initdb.d/
     ports:
       - 5432:5432
+  chatbot:
+    depends_on:
+      - postgres
+    build: .
+    env_file: .env
+    volumes:
+      - .:/opt/app
+    command: [
+      "go",
+      "run",
+      "./cmd/chatbot",
+      "-d",
+      "--postgres=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+    ] 
