@@ -1,6 +1,6 @@
 # chatbot
 
-`chatbot` is a work-in-progress WhatsApp chatbot that uses GPT-3.5.
+`chatbot` is a work-in-progress WhatsApp chatbot that uses AI (OpenAI's GPT-3.5).
 
 ## Usage
 
