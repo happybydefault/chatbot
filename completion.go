@@ -6,21 +6,21 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/PullRequestInc/go-gpt3"
 	"github.com/cenkalti/backoff/v4"
+	gpt "github.com/sashabaranov/go-gpt3"
 	"go.uber.org/zap"
 )
 
-func (c *Client) completion(ctx context.Context, prompt string) (*gpt3.CompletionResponse, error) {
-	var completionResponse *gpt3.CompletionResponse
+func (c *Client) completion(ctx context.Context, prompt string) (gpt.CompletionResponse, error) {
+	var completionResponse gpt.CompletionResponse
 
 	fn := func() error {
-		completionRequest := newCompletionRequest([]string{prompt})
+		completionRequest := newCompletionRequest(prompt)
 
 		var err error
-		completionResponse, err = c.gpt3Client.Completion(ctx, completionRequest)
+		completionResponse, err = c.gpt3Client.CreateCompletion(ctx, completionRequest)
 		if err != nil {
-			var apiErr *gpt3.APIError
+			var apiErr *gpt.APIError
 			if errors.As(err, &apiErr) {
 				if apiErr.StatusCode < 500 || apiErr.StatusCode >= 600 {
 					return backoff.Permanent(err)
@@ -50,17 +50,18 @@ func (c *Client) completion(ctx context.Context, prompt string) (*gpt3.Completio
 	return completionResponse, err
 }
 
-func newCompletionRequest(prompts []string) gpt3.CompletionRequest {
+func newCompletionRequest(prompt string) gpt.CompletionRequest {
 	var (
 		maxTokens           = 512
 		temperature float32 = 0.0
 		stop                = []string{"'''"}
 	)
 
-	completionRequest := gpt3.CompletionRequest{
-		Prompt:      prompts,
-		MaxTokens:   &maxTokens,
-		Temperature: &temperature,
+	completionRequest := gpt.CompletionRequest{
+		Model:       gpt.GPT3TextDavinci003,
+		Prompt:      prompt,
+		MaxTokens:   maxTokens,
+		Temperature: temperature,
 		Stop:        stop,
 	}
 

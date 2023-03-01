@@ -3,10 +3,10 @@ module github.com/happybydefault/chatbot
 go 1.19
 
 require (
-	github.com/PullRequestInc/go-gpt3 v1.1.11
 	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/jackc/pgx/v5 v5.2.0
 	github.com/mdp/qrterminal v1.0.1
+	github.com/sashabaranov/go-gpt3 v1.3.0
 	github.com/spf13/pflag v1.0.5
 	go.mau.fi/whatsmeow v0.0.0-20221221211611-6a0e825b4049
 	go.uber.org/zap v1.24.0

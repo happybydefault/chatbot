@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/PullRequestInc/go-gpt3"
+	gpt "github.com/sashabaranov/go-gpt3"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
@@ -19,7 +19,7 @@ type Client struct {
 	store  data.Store
 
 	whatsmeowClient *whatsmeow.Client
-	gpt3Client      gpt3.Client
+	gpt3Client      *gpt.Client
 
 	state State
 
@@ -55,7 +55,7 @@ func NewClient(cfg Config) (*Client, error) {
 		newWALogger(whatsmeowLogger.Named("client")),
 	)
 
-	gpt3Client := gpt3.NewClient(cfg.OpenAIAPIKey, gpt3.WithDefaultEngine(gpt3.TextDavinci003Engine))
+	gpt3Client := gpt.NewClient(cfg.OpenAIAPIKey)
 
 	return &Client{
 		logger:          cfg.Logger,
