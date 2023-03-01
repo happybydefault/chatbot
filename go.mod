@@ -3,7 +3,7 @@ module github.com/happybydefault/chatbot
 go 1.19
 
 require (
-	github.com/PullRequestInc/go-gpt3 v1.1.10
+	github.com/PullRequestInc/go-gpt3 v1.1.11
 	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/jackc/pgx/v5 v5.2.0
 	github.com/mdp/qrterminal v1.0.1
