@@ -11,14 +11,14 @@ import (
 	"go.uber.org/zap"
 )
 
-func (c *Client) completion(ctx context.Context, prompt string) (gpt.CompletionResponse, error) {
-	var completionResponse gpt.CompletionResponse
+func (c *Client) completion(ctx context.Context, messages []gpt.ChatCompletionMessage) (gpt.ChatCompletionResponse, error) {
+	var completionResponse gpt.ChatCompletionResponse
 
 	fn := func() error {
-		completionRequest := newCompletionRequest(prompt)
+		completionRequest := newCompletionRequest(messages)
 
 		var err error
-		completionResponse, err = c.gpt3Client.CreateCompletion(ctx, completionRequest)
+		completionResponse, err = c.gpt3Client.CreateChatCompletion(ctx, completionRequest)
 		if err != nil {
 			var apiErr *gpt.APIError
 			if errors.As(err, &apiErr) {
@@ -50,16 +50,16 @@ func (c *Client) completion(ctx context.Context, prompt string) (gpt.CompletionR
 	return completionResponse, err
 }
 
-func newCompletionRequest(prompt string) gpt.CompletionRequest {
+func newCompletionRequest(messages []gpt.ChatCompletionMessage) gpt.ChatCompletionRequest {
 	var (
 		maxTokens           = 512
 		temperature float32 = 0.0
 		stop                = []string{"'''"}
 	)
 
-	completionRequest := gpt.CompletionRequest{
-		Model:       gpt.GPT3TextDavinci003,
-		Prompt:      prompt,
+	completionRequest := gpt.ChatCompletionRequest{
+		Model:       gpt.GPT3Dot5Turbo,
+		Messages:    messages,
 		MaxTokens:   maxTokens,
 		Temperature: temperature,
 		Stop:        stop,

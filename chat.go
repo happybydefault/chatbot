@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	gpt "github.com/sashabaranov/go-gpt3"
 	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
@@ -222,14 +223,6 @@ func (c *Chat) respond() error {
 	timer := time.NewTimer(500 * time.Millisecond)
 	defer timer.Stop()
 
-	// TODO: Move prefix out of the function. Maybe use (Go) text templates.
-	// TODO: Maybe encode conversation between the person and the AI as JSON.
-	prefix := fmt.Sprintf(
-		"The following is a conversation with an AI called Chatbot, the smartest of all beings."+
-			" The assistant is helpful, creative, clever, and very friendly. The Chatbot's ID is %q.",
-		c.client.whatsmeowClient.Store.ID.User,
-	)
-
 	conversations := make([]string, 0, len(messages))
 	for _, msg := range messages {
 		conversations = append(
@@ -242,14 +235,30 @@ func (c *Chat) respond() error {
 		)
 	}
 
-	prompt := fmt.Sprintf(
-		"%s\n\n%s\n\n%s:\n'''",
-		prefix,
-		strings.Join(conversations, "\n\n"),
-		c.client.whatsmeowClient.Store.ID.User,
-	)
+	completionMessages := make([]gpt.ChatCompletionMessage, 0, len(messages)+1)
 
-	completionResponse, err := c.client.completion(ctx, prompt)
+	// TODO: Maybe move this initial system message out of the function. Maybe use (Go) text templates.
+	completionMessages = append(completionMessages, gpt.ChatCompletionMessage{
+		Role: "system",
+		Content: "The following is a conversation with an AI called Chatbot, the smartest of all beings." +
+			" The assistant is helpful, creative, clever, and very friendly.",
+	})
+
+	for _, msg := range messages {
+		var role string
+		if msg.SenderID == c.client.whatsmeowClient.Store.ID.User {
+			role = "assistant"
+		} else {
+			role = "user" // TODO: Support multiple users in order to fix group chats, if the completion API allows it.
+		}
+
+		completionMessages = append(completionMessages, gpt.ChatCompletionMessage{
+			Role:    role,
+			Content: msg.Conversation,
+		})
+	}
+
+	completionResponse, err := c.client.completion(ctx, completionMessages)
 	if err != nil {
 		return fmt.Errorf("failed to get completion response: %w", err)
 	}
@@ -257,11 +266,18 @@ func (c *Chat) respond() error {
 		return fmt.Errorf("received empty slice of completion choices")
 	}
 
-	conversationResponse := completionResponse.Choices[0].Text
-	conversationResponse = strings.TrimSpace(conversationResponse)
+	conversationResponse := completionResponse.Choices[0].Message
+	if conversationResponse.Role != "assistant" {
+		c.logger.Warn(
+			"received completion response with unexpected role",
+			zap.String("role", conversationResponse.Role),
+		)
+		return nil
+	}
+	conversationResponse.Content = strings.TrimSpace(conversationResponse.Content)
 
 	response := &waProto.Message{
-		Conversation: proto.String(conversationResponse),
+		Conversation: proto.String(conversationResponse.Content),
 	}
 
 	// Make sure there is a delay between receiving a message and sending a response,
@@ -282,7 +298,7 @@ func (c *Chat) respond() error {
 			ID:           report.ID,
 			ChatID:       c.id,
 			SenderID:     c.client.whatsmeowClient.Store.ID.User,
-			Conversation: conversationResponse,
+			Conversation: conversationResponse.Content,
 			Timestamp:    report.Timestamp,
 			CreatedAt:    time.Now(),
 		})
